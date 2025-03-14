@@ -1,0 +1,44 @@
+# Environment variables and API keys
+.env
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDEs and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Project-specific
+/data/
+/reports/
+/content/
+/logs/
+*.log
+gcc_business_intel.log
+manual_run.log
+
+# System files
+Thumbs.db 

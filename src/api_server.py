@@ -29,6 +29,14 @@ CORS(app)  # Enable CORS for all routes
 api_key = os.getenv('OPENAI_API_KEY')
 openai_client = OpenAIClient(api_key) if api_key else None
 
+@app.route('/')
+def index():
+    """Return a simple message for the root URL"""
+    return jsonify({
+        "message": "Global Possibilities Business Intelligence API",
+        "status": "running"
+    })
+
 @app.route('/api/chat', methods=['POST'])
 def chat():
     """Handle chatbot API requests"""
@@ -89,7 +97,16 @@ def serve_assets(path):
     """Serve asset files from the reports/assets directory"""
     return send_from_directory('../reports/assets', path)
 
+@app.route('/health')
+def health_check():
+    """Health check endpoint for the API"""
+    return jsonify({"status": "healthy"})
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    logger.info(f"Starting API server on port {port}")
-    app.run(host='0.0.0.0', port=port, debug=True) 
+    is_production = os.environ.get('ENVIRONMENT', '').lower() == 'production'
+    
+    logger.info(f"Starting API server on port {port} in {'production' if is_production else 'development'} mode")
+    
+    # In production, don't use debug mode
+    app.run(host='0.0.0.0', port=port, debug=not is_production) 

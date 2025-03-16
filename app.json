@@ -1,0 +1,17 @@
+{
+  "name": "gcc-business-intelligence",
+  "description": "Global Possibilities Business Intelligence Platform",
+  "env": {
+    "ENVIRONMENT": {
+      "description": "Environment (development or production)",
+      "value": "production"
+    },
+    "OPENAI_API_KEY": {
+      "description": "OpenAI API key for text generation",
+      "value": ""
+    }
+  },
+  "buildpacks": [
+    { "url": "heroku/python" }
+  ]
+} 

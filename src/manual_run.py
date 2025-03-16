@@ -50,17 +50,18 @@ def run_report_generation(articles=None):
     generator = ConsolidatedReportGenerator()
     
     # Generate the consolidated report
-    md_path, html_path = generator.generate_all(articles)
+    md_path, html_path, pdf_path = generator.generate_all(articles)
     
     if md_path:
         logger.info(f"Successfully generated report at {md_path}")
         if html_path:
             logger.info(f"HTML version available at {html_path}")
-            return md_path, html_path
-        return md_path, None
+        if pdf_path:
+            logger.info(f"PDF version available at {pdf_path}")
+        return md_path, html_path, pdf_path
     else:
         logger.error("Failed to generate report.")
-        return None, None
+        return None, None, None
 
 def open_report_in_browser(html_path):
     """Open the HTML report in the default browser."""
@@ -119,8 +120,9 @@ def main():
         
         # Step 2: Generate reports if not skipped
         html_path = None
+        pdf_path = None
         if not args.skip_report:
-            md_path, html_path = run_report_generation(articles)
+            md_path, html_path, pdf_path = run_report_generation(articles)
             
             # Step 3: Open the report in a browser if requested
             if html_path and not args.no_browser:
@@ -137,6 +139,8 @@ def main():
             print("\n" + "="*80)
             print("✅ Process completed successfully!")
             print(f"📊 HTML Report: {html_path}")
+            if pdf_path:
+                print(f"📑 PDF Report: {pdf_path}")
             if not args.no_browser:
                 print("🌐 The report has been opened in your default browser.")
             print("="*80 + "\n")

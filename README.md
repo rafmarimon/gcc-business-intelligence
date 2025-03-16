@@ -10,6 +10,7 @@ This platform automates the following workflow:
 2. **Analysis**: Analyzes collected news using NLP and LLMs to identify trends, opportunities, and key insights
 3. **Report Generation**: Creates detailed weekly reports with visualizations and actionable intelligence
 4. **LinkedIn Content**: Automatically generates professional LinkedIn posts based on the most significant insights
+5. **Interactive Reports**: Provides HTML reports with the company logo and an interactive chatbot assistant
 
 The entire process can be triggered with a single command, producing both detailed business intelligence reports and ready-to-post LinkedIn content.
 
@@ -22,31 +23,37 @@ The entire process can be triggered with a single command, producing both detail
 - **Report Generation**: Creates comprehensive markdown and HTML reports
 - **LinkedIn Content Generation**: Automatically creates professional social media posts
 - **Consolidated Output**: Combines all insights and content into a single, well-formatted report
+- **Interactive Chatbot**: AI-powered assistant that can answer questions about the report and GCC business trends
+- **Professional Design**: Modern, responsive HTML design with Global Possibilities branding
 
 ## Project Structure
 
 ```
 .
-├── config/                  # Configuration files
-│   ├── news_sources.json    # News source definitions and selectors
-│   └── keywords.json        # Keywords for trend analysis
-├── content/                 # Generated LinkedIn posts
-├── data/                    # Collected news data (JSON/CSV)
-├── reports/                 # Generated reports
-├── logs/                    # Log files
-├── src/                     # Source code
-│   ├── collectors/          # Data collection modules
-│   │   └── news_collector.py    # News web scraping module
-│   ├── processors/          # Data processing modules
-│   │   └── news_analyzer.py     # News analysis and report generation
-│   ├── generators/          # Content generation modules
-│   │   ├── linkedin_content.py  # LinkedIn post generator
-│   │   └── consolidated_report.py  # Combined report generator
-│   └── manual_run.py        # Script to run the complete process
-├── .env                     # Environment variables (API keys, etc.)
-├── requirements.txt         # Python dependencies
-├── setup.py                 # Installation and setup script
-└── README.md                # This file
+├── config/                   # Configuration files
+│   ├── news_sources.json     # News source definitions and selectors
+│   └── keywords.json         # Keywords for trend analysis
+├── content/                  # Generated LinkedIn posts
+├── data/                     # Collected news data (JSON/CSV)
+├── reports/                  # Generated reports
+│   └── assets/               # Report assets (images, logo)
+├── logs/                     # Log files
+├── src/                      # Source code
+│   ├── collectors/           # Data collection modules
+│   │   └── news_collector.py # News web scraping module
+│   ├── processors/           # Data processing modules
+│   │   └── news_analyzer.py  # News analysis and report generation
+│   ├── generators/           # Content generation modules
+│   │   ├── linkedin_content.py     # LinkedIn post generator
+│   │   └── consolidated_report.py   # Combined report generator
+│   ├── utils/                # Utility modules
+│   │   └── openai_utils.py   # OpenAI API wrapper with rate limiting
+│   ├── api_server.py         # API server for chatbot functionality
+│   └── manual_run.py         # Script to run the complete process
+├── .env                      # Environment variables (API keys, etc.)
+├── requirements.txt          # Python dependencies
+├── setup.py                  # Installation and setup script
+└── README.md                 # This file
 ```
 
 ## Installation
@@ -80,6 +87,11 @@ The entire process can be triggered with a single command, producing both detail
    OPENAI_API_KEY=your_openai_api_key_here
    ```
 
+4. Install additional packages for the chatbot feature:
+   ```bash
+   pip install flask flask-cors
+   ```
+
 ## Usage
 
 ### Run the Complete Process
@@ -104,7 +116,26 @@ python src/manual_run.py --skip-collection
 
 # Skip report generation
 python src/manual_run.py --skip-report
+
+# Generate report but don't open browser automatically
+python src/manual_run.py --no-browser
 ```
+
+### Using the Interactive Chatbot
+
+The HTML reports include an interactive chatbot that can answer questions about the report content and GCC business trends. To use this feature:
+
+1. Start the API server:
+   ```bash
+   source venv/bin/activate
+   python src/api_server.py
+   ```
+
+2. Open the HTML report in your browser.
+
+3. Click the chat icon in the bottom-right corner to open the chatbot interface.
+
+4. Ask questions about the report content or GCC business trends.
 
 ### View the Results
 
@@ -151,14 +182,25 @@ Edit the `config/keywords.json` file to customize keywords used for trend analys
 }
 ```
 
+### Customizing Report Templates
+
+The HTML report template can be customized by modifying the `_create_html_version` method in the `src/generators/consolidated_report.py` file. This includes:
+
+- Styling and theming
+- Layout and structure
+- Chatbot functionality
+- Logo and branding elements
+
 ## Technologies Used
 
 - **Web Scraping**: BeautifulSoup, Requests
 - **Data Processing**: Pandas, NLTK
 - **Visualization**: Matplotlib, Seaborn
-- **Report Generation**: Markdown, HTML
-- **AI/LLM**: OpenAI GPT-4
+- **Report Generation**: Markdown, HTML, CSS
+- **AI/LLM**: OpenAI GPT-3.5/4
 - **Environment Management**: python-dotenv
+- **API Server**: Flask, Flask-CORS
+- **Frontend**: HTML, CSS, JavaScript
 
 ## License
 

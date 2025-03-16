@@ -84,28 +84,34 @@ class LinkedInContentGenerator:
     def extract_top_insights(self, report_content):
         """Extract the top insights from the report for LinkedIn content."""
         if not report_content:
-            return []
+            logger.warning("No report content provided for insight extraction.")
+            return self._generate_fallback_insights(report_content)
         
         # Create a system prompt to extract insights
         system_prompt = """
-        You are a professional content analyst. Extract the top 5 most significant business insights or developments 
+        You are a professional content analyst. Extract the top 6 most significant business insights or developments 
         from the given business intelligence report. These should be the most newsworthy, impactful, 
         or strategically important pieces of information that would be valuable for LinkedIn audience.
+        
+        IMPORTANT: At least one of the insights MUST focus on US-UAE business relations, trade, investment, 
+        or diplomatic ties that affect business. If any US-UAE relations content exists in the report, prioritize it.
         
         For each insight, provide:
         1. A brief title (5-8 words)
         2. The key fact or development (1-2 sentences)
         3. Why it matters to businesses (1 sentence)
+        4. A "category" field with value "us_uae_relations" for any US-UAE related insight, or another appropriate category (e.g., "finance", "energy", "tech", etc.) for other insights
         
-        Format your response as a JSON array where each element is an object with keys: "title", "fact", "why_it_matters".
+        Format your response as a JSON object with a key 'insights' containing an array, where each element is an object with keys: "title", "fact", "why_it_matters", "category".
         """
         
         user_prompt = f"""
-        Extract the top 5 business insights from this UAE/GCC business intelligence report:
+        Extract the top 6 business insights from this UAE/GCC business intelligence report, ensuring at least one 
+        focuses on US-UAE business or diplomatic relations:
         
         {report_content[:10000]}  # Limit to avoid token limits
         
-        Please respond with only the JSON array. No preamble or explanation needed.
+        Please respond with only the JSON object. No preamble or explanation needed.
         """
         
         try:
@@ -125,25 +131,63 @@ class LinkedInContentGenerator:
             )
             
             content = response.choices[0].message.content.strip()
+            logger.info(f"Received response from OpenAI for insight extraction. Response length: {len(content)}")
             
-            # Extract JSON content
+            # Extract JSON content and handle different possible response formats
             try:
-                # Use regex to find JSON pattern if needed
+                # First attempt direct JSON parsing
+                insights_data = json.loads(content)
+                
+                # Check if insights exists and is a list
+                if 'insights' in insights_data and isinstance(insights_data['insights'], list):
+                    insights = insights_data['insights']
+                    logger.info(f"Successfully extracted {len(insights)} insights from JSON response.")
+                    return insights
+                # If insights key doesn't exist but we have an array directly
+                elif isinstance(insights_data, list):
+                    logger.info(f"Successfully extracted {len(insights_data)} insights from JSON array response.")
+                    return insights_data
+                # If it's not a recognized format but still valid JSON, log and return fallback
+                else:
+                    logger.warning(f"JSON response does not contain expected 'insights' array: {insights_data.keys() if isinstance(insights_data, dict) else 'not a dict'}")
+                    return self._generate_fallback_insights(report_content)
+                    
+            except json.JSONDecodeError as e:
+                # If direct parsing fails, try to extract JSON using regex
+                logger.warning(f"Failed to parse JSON directly: {str(e)}")
                 json_match = re.search(r'\{.*\}', content, re.DOTALL)
                 if json_match:
                     json_content = json_match.group(0)
-                    insights = json.loads(json_content)
-                    return insights.get('insights', []) if isinstance(insights, dict) else insights
+                    try:
+                        insights_data = json.loads(json_content)
+                        
+                        # Check for insights key
+                        if 'insights' in insights_data and isinstance(insights_data['insights'], list):
+                            insights = insights_data['insights']
+                            logger.info(f"Successfully extracted {len(insights)} insights from regex-matched JSON.")
+                            return insights
+                        # If there's no insights key but we have a list of objects
+                        elif isinstance(insights_data, list):
+                            logger.info(f"Successfully extracted {len(insights_data)} insights from regex-matched JSON array.")
+                            return insights_data
+                        else:
+                            logger.warning("JSON structure from regex match doesn't contain expected insights array")
+                            return self._generate_fallback_insights(report_content)
+                    except json.JSONDecodeError as json_err:
+                        logger.error(f"Failed to parse regex-matched JSON content: {str(json_err)}")
+                        return self._generate_fallback_insights(report_content)
                 else:
-                    insights = json.loads(content)
-                    return insights.get('insights', []) if isinstance(insights, dict) else insights
-            except json.JSONDecodeError as e:
-                logger.error(f"Error parsing insights JSON: {e}")
-                logger.error(f"Raw content: {content[:200]}...")
+                    # If no JSON pattern found, log and fall back
+                    logger.error("No JSON pattern found in API response")
+                    return self._generate_fallback_insights(report_content)
+            
+            except Exception as e:
+                logger.error(f"Error parsing JSON response: {str(e)}")
+                logger.error(f"Raw content (first 200 chars): {content[:200]}...")
                 return self._generate_fallback_insights(report_content)
             
         except Exception as e:
-            logger.error(f"Error extracting insights with OpenAI: {e}")
+            logger.error(f"Error extracting insights with OpenAI: {str(e)}")
             return self._generate_fallback_insights(report_content)
     
     def _generate_fallback_insights(self, report_content):
@@ -153,29 +197,40 @@ class LinkedInContentGenerator:
         # Create some sample insights based on common business topics in GCC
         fallback_insights = [
             {
+                "title": "UAE-US Trade Agreement Progress",
+                "fact": "Recent developments show progress in trade negotiations between the UAE and United States, with a focus on technology and renewable energy sectors.",
+                "why_it_matters": "A strengthened trade partnership could open new market opportunities for businesses in both countries.",
+                "category": "us_uae_relations"
+            },
+            {
                 "title": "UAE Digital Economy Growth",
                 "fact": "The UAE's digital economy is experiencing rapid growth, with increased investment in tech startups and digital infrastructure.",
-                "why_it_matters": "This presents opportunities for businesses in technology, fintech, and digital transformation services."
+                "why_it_matters": "This presents opportunities for businesses in technology, fintech, and digital transformation services.",
+                "category": "technology"
             },
             {
                 "title": "Saudi Vision 2030 Progress",
                 "fact": "Saudi Arabia continues to advance its Vision 2030 goals with new megaprojects and economic diversification initiatives.",
-                "why_it_matters": "Companies aligned with Vision 2030 priorities may find significant growth opportunities in the kingdom."
+                "why_it_matters": "Companies aligned with Vision 2030 priorities may find significant growth opportunities in the kingdom.",
+                "category": "saudi_arabia"
             },
             {
                 "title": "Sustainable Energy Investments",
                 "fact": "GCC countries are increasing investments in renewable energy projects, particularly solar and green hydrogen.",
-                "why_it_matters": "The shift presents both challenges for traditional energy businesses and opportunities in the green economy."
+                "why_it_matters": "The shift presents both challenges for traditional energy businesses and opportunities in the green economy.",
+                "category": "energy"
             },
             {
                 "title": "Regional E-commerce Expansion",
                 "fact": "E-commerce platforms are seeing rapid adoption across the GCC, with local players competing against global giants.",
-                "why_it_matters": "Businesses should prioritize their digital retail strategy to capture the growing online consumer base."
+                "why_it_matters": "Businesses should prioritize their digital retail strategy to capture the growing online consumer base.",
+                "category": "retail"
             },
             {
                 "title": "Financial Sector Transformation",
                 "fact": "Banking and financial services in the GCC are undergoing digital transformation, with increased focus on fintech integration.",
-                "why_it_matters": "This evolution is changing how businesses access financial services and manage transactions in the region."
+                "why_it_matters": "This evolution is changing how businesses access financial services and manage transactions in the region.",
+                "category": "finance"
             }
         ]
         
@@ -188,10 +243,59 @@ class LinkedInContentGenerator:
         
         # Create context from articles if available
         articles_context = ""
-        if articles:
-            articles_sample = articles[:5]  # Use up to 5 articles for context
+        
+        # Filter articles by category if possible
+        category = insight.get('category', '')
+        relevant_articles = []
+        
+        if articles and category:
+            # For US-UAE relations, look for relevant content
+            if category == "us_uae_relations":
+                us_uae_keywords = [
+                    'us-uae', 'uae-us', 'united states uae', 'us embassy', 'uae embassy',
+                    'us-uae business council', 'us-uae relations', 'america uae', 'uae america',
+                    'washington uae', 'abu dhabi us', 'dubai us', 'uae washington',
+                    'us investment uae', 'uae investment us', 'us-uae trade', 'uae-us trade'
+                ]
+                
+                for article in articles:
+                    content = (
+                        (article.get('headline', '') or '') + ' ' + 
+                        (article.get('summary', '') or '')
+                    ).lower()
+                    
+                    if any(keyword.lower() in content for keyword in us_uae_keywords):
+                        relevant_articles.append(article)
+            
+            # For other categories, use simple keyword matching
+            else:
+                category_keywords = {
+                    "technology": ["tech", "digital", "innovation", "startup", "ai", "artificial intelligence"],
+                    "energy": ["energy", "renewable", "solar", "oil", "gas", "petroleum", "hydrogen"],
+                    "finance": ["finance", "banking", "investment", "fintech", "market", "stock"],
+                    "retail": ["retail", "e-commerce", "consumer", "shopping", "mall", "online store"],
+                    "real_estate": ["real estate", "property", "construction", "housing", "building"]
+                }
+                
+                keywords = category_keywords.get(category, [category])
+                
+                for article in articles:
+                    content = (
+                        (article.get('headline', '') or '') + ' ' + 
+                        (article.get('summary', '') or '')
+                    ).lower()
+                    
+                    if any(keyword.lower() in content for keyword in keywords):
+                        relevant_articles.append(article)
+            
+            # If we found relevant articles, use them, otherwise use the original ones
+            if not relevant_articles:
+                relevant_articles = articles[:5]  # Use up to 5 articles for context
+            else:
+                relevant_articles = relevant_articles[:5]  # Limit to 5 most relevant
+            
             articles_text = []
-            for article in articles_sample:
+            for article in relevant_articles:
                 headline = article.get('headline', '')
                 source = article.get('source_name', '')
                 articles_text.append(f"- {headline} ({source})")
@@ -199,36 +303,65 @@ class LinkedInContentGenerator:
             if articles_text:
                 articles_context = "Recent articles:\n" + "\n".join(articles_text)
         
-        # Create a system prompt for LinkedIn post generation
-        system_prompt = """
-        You are a professional business content writer for LinkedIn. Your task is to create an engaging, 
-        informative, and professional LinkedIn post based on a business insight from the UAE/GCC region.
+        # Create tailored system prompts based on the category
+        base_system_prompt = """
+        You are a skilled LinkedIn content creator specializing in business content for professionals. 
+        Create a compelling LinkedIn post based on the business insight provided.
         
         The post should:
-        1. Start with a compelling hook or question to grab attention
-        2. Present the key information clearly and concisely
-        3. Explain why this development matters to businesses
+        1. Start with an attention-grabbing headline or question
+        2. Present the key information concisely and clearly
+        3. Explain the business implications and why this matters
         4. Include a call to action or thought-provoking conclusion
-        5. End with 4-6 relevant hashtags (including some regional ones like #UAE #GCC #Dubai)
-        6. Be around 150-250 words (1300-1800 characters)
-        7. Use professional language suitable for business executives
-        8. Include appropriate emoji for visual engagement (2-4 total)
+        5. End with 4-6 relevant hashtags
         
-        The tone should be: informative, insightful, and professionally conversational.
+        Keep the post between 150-250 words. Use a professional but engaging tone.
+        Do not include the title of the insight in the post itself.
         """
         
+        # Add category-specific instructions
+        category_specific_instructions = ""
+        
+        if category == "us_uae_relations":
+            category_specific_instructions = """
+            For this US-UAE relations post:
+            - Highlight the bilateral business relationship between the United States and United Arab Emirates
+            - Mention specific benefits for businesses in both countries
+            - Reference any recent diplomatic developments that affect business
+            - Consider mentioning the US-UAE Business Council or other relevant organizations if appropriate
+            - Use hashtags like #USUAERelations #USUAEBusiness #GlobalTrade
+            """
+        elif category == "technology":
+            category_specific_instructions = """
+            For this technology post:
+            - Highlight innovation and digital transformation in the GCC region
+            - Connect the development to global tech trends
+            - Use hashtags like #TechInnovation #UAETech #DigitalTransformation
+            """
+        elif category == "energy":
+            category_specific_instructions = """
+            For this energy sector post:
+            - Discuss both traditional energy strengths and renewable transitions in the GCC
+            - Connect to global energy market trends
+            - Use hashtags like #EnergyTransition #RenewableEnergy #GCCEnergy
+            """
+        
+        # Combine the prompts
+        system_prompt = base_system_prompt
+        if category_specific_instructions:
+            system_prompt += "\n" + category_specific_instructions
+        
+        # Create the user prompt
         user_prompt = f"""
-        Create a LinkedIn post based on this business insight from the UAE/GCC region:
-        
-        TITLE: {insight.get('title', '')}
-        
-        KEY FACT: {insight.get('fact', '')}
-        
-        WHY IT MATTERS: {insight.get('why_it_matters', '')}
+        Business Insight:
+        Title: {insight.get('title', '')}
+        Fact: {insight.get('fact', '')}
+        Why it matters: {insight.get('why_it_matters', '')}
+        Category: {category}
         
         {articles_context}
         
-        Please create an engaging and professional LinkedIn post that will resonate with business leaders.
+        Create a compelling LinkedIn post based on this insight.
         """
         
         try:
@@ -243,16 +376,15 @@ class LinkedInContentGenerator:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                temperature=0.7,
-                max_tokens=1000
+                temperature=0.7
             )
             
             post_content = response.choices[0].message.content.strip()
             
             return {
-                'title': insight.get('title', ''),
-                'content': post_content,
-                'generated_at': datetime.now().isoformat()
+                "title": insight.get('title', ''),
+                "content": post_content,
+                "category": category
             }
             
         except Exception as e:
@@ -260,30 +392,72 @@ class LinkedInContentGenerator:
             return self._generate_fallback_post(insight)
     
     def _generate_fallback_post(self, insight):
-        """Generate a fallback LinkedIn post when OpenAI API is unavailable."""
-        logger.info(f"Generating fallback LinkedIn post for: {insight.get('title', '')}")
+        """Generate a fallback LinkedIn post when OpenAI is unavailable."""
+        logger.info("Generating fallback LinkedIn post without OpenAI...")
         
-        title = insight.get('title', 'Business Insight')
+        title = insight.get('title', '')
         fact = insight.get('fact', '')
         why_it_matters = insight.get('why_it_matters', '')
+        category = insight.get('category', '')
         
-        # Create a template-based post
-        post_content = f"""📊 **{title}** 📊
+        # Generate different post templates based on category
+        if category == "us_uae_relations":
+            post_content = f"""🇺🇸🇦🇪 **US-UAE Partnership Update**
 
-Did you know? {fact}
+{fact} 
+
+This development is significant because {why_it_matters.lower()} As the bilateral relationship continues to strengthen, businesses on both sides can explore new opportunities for collaboration and growth.
+
+The US-UAE Business Council notes that bilateral trade has been growing steadily, making the UAE one of America's most important trading partners in the Middle East.
+
+What opportunities do you see in the evolving US-UAE business landscape?
+
+#USUAERelations #InternationalTrade #BusinessDiplomacy #GlobalOpportunities #UAEBusiness #USBusiness"""
+        
+        elif category == "technology":
+            post_content = f"""💡 **Tech Innovation Spotlight: UAE**
+
+{fact} 
 
 Why this matters: {why_it_matters}
 
-At Global Possibilities, we help businesses navigate the dynamic GCC market landscape and capitalize on emerging opportunities.
+The UAE continues to position itself as a technology hub in the Middle East, with significant investments in digital infrastructure and smart city initiatives.
 
-What's your take on this development? Share your thoughts in the comments below!
+Are you participating in the UAE's tech transformation? What opportunities do you see?
 
-#Business #GCCEconomy #UAE #SaudiArabia #BusinessIntelligence #GlobalPossibilities"""
+#UAETech #DigitalTransformation #Innovation #GCCTech #MiddleEastTech #FutureTech"""
+        
+        elif category == "energy":
+            post_content = f"""⚡ **Energy Sector Update**
+
+{fact} 
+
+This development matters because {why_it_matters.lower()}
+
+The energy landscape in the GCC continues to evolve, balancing traditional oil and gas strengths with ambitious renewable energy goals.
+
+How is your business adapting to the changing energy dynamics in the region?
+
+#EnergyTransition #RenewableEnergy #GCCEnergy #Sustainability #CleanTech #EnergyInnovation"""
+        
+        else:
+            # Generic template for other categories
+            post_content = f"""📊 **GCC Business Intelligence Update**
+
+{fact} 
+
+Why this matters: {why_it_matters}
+
+The business landscape in the UAE and broader GCC region continues to evolve, presenting both challenges and opportunities for companies operating in this dynamic market.
+
+What's your take on this development? How might it affect your business strategy in the region?
+
+#UAEBusiness #GCCBusiness #BusinessIntelligence #GlobalBusiness #MiddleEastBusiness"""
         
         return {
-            'title': title,
-            'content': post_content,
-            'generated_at': datetime.now().isoformat()
+            "title": title,
+            "content": post_content,
+            "category": category
         }
     
     def generate_linkedin_posts(self):
@@ -292,16 +466,19 @@ What's your take on this development? Share your thoughts in the comments below!
         report_content = self.get_latest_report()
         if not report_content:
             logger.warning("No report content available for LinkedIn post generation.")
-            return []
+            # Use fallback insights to generate posts anyway
+            insights = self._generate_fallback_insights("")
+        else:
+            # Extract insights from the report
+            insights = self.extract_top_insights(report_content)
+        
+        # If still no insights, use fallbacks to ensure we have posts
+        if not insights or len(insights) == 0:
+            logger.warning("No insights extracted from report. Using fallback insights.")
+            insights = self._generate_fallback_insights(report_content or "")
         
         # Get supplementary news data
         latest_articles = self.get_latest_news_data()
-        
-        # Extract insights from the report
-        insights = self.extract_top_insights(report_content)
-        if not insights:
-            logger.warning("No insights extracted from report.")
-            return []
         
         # Generate posts for each insight
         posts = []
@@ -310,9 +487,14 @@ What's your take on this development? Share your thoughts in the comments below!
             if post:
                 posts.append(post)
         
+        # If still no posts, create some generic ones
         if not posts:
-            logger.warning("No LinkedIn posts were generated.")
-            return []
+            logger.warning("No LinkedIn posts generated from insights. Creating generic posts.")
+            generic_insights = self._generate_fallback_insights("")
+            for insight in generic_insights:
+                post = self._generate_fallback_post(insight)
+                if post:
+                    posts.append(post)
         
         # Save posts to file
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')

@@ -83,6 +83,76 @@
         "link_selector": "h2 a, h3 a, *[class*='title'] a",
         "date_selector": "time, *[class*='date'], *[class*='time']"
       }
+    },
+    {
+      "name": "US-UAE Business Council",
+      "url": "https://usuaebusiness.org/category/news-and-press/",
+      "country": "US/UAE",
+      "language": "English",
+      "category": "Business & Diplomatic",
+      "crawl_pattern": {
+        "article_selector": "article, .post, .news-item, div[class*='article']",
+        "headline_selector": "h2 a, h3 a, .entry-title a, *[class*='title'] a",
+        "summary_selector": ".entry-summary, .excerpt, *[class*='summary'], p",
+        "link_selector": "h2 a, h3 a, .entry-title a, *[class*='title'] a",
+        "date_selector": ".entry-date, time, *[class*='date'], *[class*='published']"
+      }
+    },
+    {
+      "name": "US-UAE Business Council Resources",
+      "url": "https://usuaebusiness.org/resources/",
+      "country": "US/UAE",
+      "language": "English",
+      "category": "Business & Diplomatic",
+      "crawl_pattern": {
+        "article_selector": ".resource-item, article, .card, div[class*='publication']",
+        "headline_selector": "h2 a, h3 a, *[class*='title'] a",
+        "summary_selector": ".excerpt, *[class*='summary'], *[class*='description'], p",
+        "link_selector": "h2 a, h3 a, *[class*='title'] a, .read-more",
+        "date_selector": "time, *[class*='date'], *[class*='published']"
+      }
+    },
+    {
+      "name": "The National US-UAE Relations",
+      "url": "https://www.thenationalnews.com/tags/us-uae-relations/",
+      "country": "UAE",
+      "language": "English",
+      "category": "Diplomatic",
+      "crawl_pattern": {
+        "article_selector": ".article-card, article, div[class*='article']",
+        "headline_selector": ".article-card__title a, *[class*='title'] a, h2 a, h3 a",
+        "summary_selector": ".article-card__excerpt, *[class*='excerpt'], *[class*='summary'], p",
+        "link_selector": ".article-card__title a, *[class*='title'] a, h2 a, h3 a",
+        "date_selector": ".article-card__byline time, time, *[class*='date']"
+      }
+    },
+    {
+      "name": "WAM US-UAE Relations",
+      "url": "https://wam.ae/en/search?query=us-uae",
+      "country": "UAE",
+      "language": "English",
+      "category": "Diplomatic",
+      "crawl_pattern": {
+        "article_selector": ".news-card, article, .card, div[class*='news']",
+        "headline_selector": ".news-card-title a, *[class*='title'] a, h3 a",
+        "summary_selector": ".news-card-summary, *[class*='summary'], *[class*='desc'], p",
+        "link_selector": ".news-card-title a, *[class*='title'] a, h3 a",
+        "date_selector": ".news-card-date, time, *[class*='date']"
+      }
+    },
+    {
+      "name": "WAM UAE-US Relations",
+      "url": "https://wam.ae/en/search?query=uae-us",
+      "country": "UAE",
+      "language": "English",
+      "category": "Diplomatic",
+      "crawl_pattern": {
+        "article_selector": ".news-card, article, .card, div[class*='news']",
+        "headline_selector": ".news-card-title a, *[class*='title'] a, h3 a",
+        "summary_selector": ".news-card-summary, *[class*='summary'], *[class*='desc'], p",
+        "link_selector": ".news-card-title a, *[class*='title'] a, h3 a",
+        "date_selector": ".news-card-date, time, *[class*='date']"
+      }
     }
   ],
   "keywords": [
@@ -100,6 +170,15 @@
     "GCC economic growth",
     "Dubai expo",
     "UAE vision 2030",
-    "GCC trade agreements"
+    "GCC trade agreements",
+    "US-UAE relations",
+    "UAE-US trade",
+    "UAE-US investment",
+    "US-UAE diplomacy",
+    "UAE-US business",
+    "US companies in UAE",
+    "UAE investors in US",
+    "UAE-US partnership",
+    "US-UAE trade agreement"
   ]
 } 

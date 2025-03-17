@@ -1,8 +1,13 @@
 import os
 import sys
 import json
+import glob
 import logging
-from flask import Flask, request, jsonify, send_from_directory
+import threading
+import subprocess
+from datetime import datetime
+from pathlib import Path
+from flask import Flask, request, jsonify, send_from_directory, render_template
 from flask_cors import CORS
 from dotenv import load_dotenv
 
@@ -22,7 +27,10 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 
-app = Flask(__name__, static_folder='../reports')
+app = Flask(__name__, 
+    static_folder='../reports',
+    template_folder='templates'
+)
 CORS(app)  # Enable CORS for all routes
 
 # Initialize OpenAI client
@@ -31,11 +39,142 @@ openai_client = OpenAIClient(api_key) if api_key else None
 
 @app.route('/')
 def index():
-    """Return a simple message for the root URL"""
-    return jsonify({
-        "message": "Global Possibilities Business Intelligence API",
-        "status": "running"
-    })
+    """Serve the landing page"""
+    return render_template('index.html')
+
+@app.route('/api/reports')
+def list_reports():
+    """List the available reports"""
+    try:
+        reports_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'reports')
+        reports = []
+        
+        # Get all consolidated report markdown files
+        md_files = glob.glob(os.path.join(reports_dir, 'consolidated_report_*.md'))
+        
+        # Sort by timestamp (newest first)
+        md_files.sort(key=os.path.getmtime, reverse=True)
+        
+        # Limit to 10 most recent reports
+        md_files = md_files[:10]
+        
+        for md_file in md_files:
+            base_name = os.path.basename(md_file)
+            timestamp = base_name.replace('consolidated_report_', '').replace('.md', '')
+            
+            # Parse timestamp
+            try:
+                date_obj = datetime.strptime(timestamp, '%Y%m%d_%H%M%S')
+                formatted_date = date_obj.strftime('%B %d, %Y')
+            except:
+                formatted_date = "Unknown Date"
+            
+            # Get corresponding HTML and PDF files
+            html_file = md_file.replace('.md', '.html')
+            pdf_file = md_file.replace('.md', '.pdf')
+            
+            # Get first 200 characters of report as description
+            description = ""
+            try:
+                with open(md_file, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    # Skip title and get the actual content
+                    parts = content.split('---', 2)
+                    if len(parts) > 2:
+                        actual_content = parts[2]
+                    else:
+                        actual_content = content
+                    
+                    # Extract a brief description
+                    description = actual_content.strip()[:200] + "..."
+            except:
+                description = "Daily business intelligence report on GCC and UAE markets."
+            
+            report_info = {
+                "title": f"Business Intelligence Report - {formatted_date}",
+                "date": date_obj.isoformat() if 'date_obj' in locals() else "",
+                "description": description,
+                "md_url": f"/reports/{os.path.basename(md_file)}",
+                "html_url": f"/reports/{os.path.basename(html_file)}",
+                "pdf_url": f"/reports/{os.path.basename(pdf_file)}"
+            }
+            
+            reports.append(report_info)
+        
+        return jsonify({"reports": reports})
+    
+    except Exception as e:
+        logger.error(f"Error listing reports: {str(e)}")
+        return jsonify({"error": str(e), "reports": []}), 500
+
+@app.route('/api/generate-report', methods=['POST'])
+def generate_report():
+    """Generate a new report using the manual_run.py script"""
+    try:
+        data = request.json
+        report_type = data.get('report_type', 'daily')
+        collect_news = data.get('collect_news', True)
+        
+        # Prepare command arguments
+        cmd_args = ['python', 'src/manual_run.py', '--no-browser']
+        
+        if not collect_news:
+            cmd_args.append('--skip-collection')
+        
+        # Run the command in a separate thread to avoid blocking
+        def run_command():
+            try:
+                # Get the path to the virtual environment python
+                if os.name == 'nt':  # Windows
+                    python_exec = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'venv', 'Scripts', 'python.exe')
+                else:  # Unix/Linux/Mac
+                    python_exec = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'venv', 'bin', 'python')
+                
+                # Check if python executable exists
+                if not os.path.exists(python_exec):
+                    python_exec = sys.executable
+                
+                # Get the full path to manual_run.py
+                script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'manual_run.py')
+                
+                # Run the script with proper arguments
+                run_args = [python_exec, script_path, '--no-browser']
+                if not collect_news:
+                    run_args.append('--skip-collection')
+                
+                logger.info(f"Running command: {' '.join(run_args)}")
+                
+                result = subprocess.run(
+                    run_args,
+                    capture_output=True,
+                    text=True,
+                    cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                )
+                
+                if result.returncode == 0:
+                    logger.info("Report generation completed successfully")
+                else:
+                    logger.error(f"Report generation failed: {result.stderr}")
+            
+            except Exception as e:
+                logger.error(f"Error in report generation thread: {str(e)}")
+        
+        # Start the thread
+        thread = threading.Thread(target=run_command)
+        thread.daemon = True
+        thread.start()
+        
+        return jsonify({
+            "success": True,
+            "message": "Report generation started. This will take a few minutes."
+        })
+    
+    except Exception as e:
+        logger.error(f"Error triggering report generation: {str(e)}")
+        return jsonify({
+            "success": False,
+            "message": f"Error: {str(e)}"
+        }), 500
 
 @app.route('/api/chat', methods=['POST'])
 def chat():

@@ -70,19 +70,17 @@ document.addEventListener('DOMContentLoaded', function() {
         
         reports.forEach(report => {
             const reportDate = new Date(report.date);
-            const formattedDate = reportDate instanceof Date && !isNaN(reportDate) 
-                ? reportDate.toLocaleDateString('en-US', { 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                  }) 
-                : 'Unknown Date';
+            const formattedDate = report.formatted_date || 'Unknown Date';
+            const formattedTime = report.formatted_time || '';
             
             const reportCard = document.createElement('div');
             reportCard.className = 'report-card';
             reportCard.innerHTML = `
                 <div class="report-content">
-                    <span class="report-date">${formattedDate}</span>
+                    <div class="report-datetime">
+                        <span class="report-date">${formattedDate}</span>
+                        <span class="report-time">${formattedTime}</span>
+                    </div>
                     <h3 class="report-title">${report.title}</h3>
                     <p class="report-description">${report.description}</p>
                     <div class="report-links">

@@ -66,8 +66,10 @@ def list_reports():
             try:
                 date_obj = datetime.strptime(timestamp, '%Y%m%d_%H%M%S')
                 formatted_date = date_obj.strftime('%B %d, %Y')
+                formatted_time = date_obj.strftime('%I:%M %p')  # Format time as 12-hour with AM/PM
             except:
                 formatted_date = "Unknown Date"
+                formatted_time = "Unknown Time"
             
             # Get corresponding HTML and PDF files
             html_file = md_file.replace('.md', '.html')
@@ -93,6 +95,9 @@ def list_reports():
             report_info = {
                 "title": f"Business Intelligence Report - {formatted_date}",
                 "date": date_obj.isoformat() if 'date_obj' in locals() else "",
+                "formatted_date": formatted_date,
+                "formatted_time": formatted_time,
+                "timestamp": timestamp,
                 "description": description,
                 "md_url": f"/reports/{os.path.basename(md_file)}",
                 "html_url": f"/reports/{os.path.basename(html_file)}",

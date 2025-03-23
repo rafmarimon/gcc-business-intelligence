@@ -62,19 +62,42 @@ class GCCBusinessNewsAnalyzer:
         try:
             if specific_file and os.path.exists(specific_file):
                 with open(specific_file, 'r') as f:
-                    return json.load(f)
+                    articles = json.load(f)
+            else:
+                # Find the most recent JSON file in the data directory
+                json_files = glob.glob(os.path.join(self.data_dir, 'news_data_*.json'))
+                if not json_files:
+                    logger.warning("No news data files found.")
+                    return []
+                
+                # Sort files by creation time (newest first)
+                latest_file = max(json_files, key=os.path.getctime)
+                logger.info(f"Loading news data from {latest_file}")
+                
+                with open(latest_file, 'r') as f:
+                    articles = json.load(f)
             
-            # Find the most recent JSON file in the data directory
-            json_files = glob.glob(os.path.join(self.data_dir, 'news_data_*.json'))
-            if not json_files:
-                logger.warning("No news data files found.")
-                return []
-            
-            latest_file = max(json_files, key=os.path.getctime)
-            logger.info(f"Loading news data from {latest_file}")
-            
-            with open(latest_file, 'r') as f:
-                return json.load(f)
+            # Sort articles by published_at date (newest first)
+            try:
+                articles = sorted(
+                    articles,
+                    key=lambda x: x.get('published_at', x.get('collected_at', '')),
+                    reverse=True
+                )
+                
+                # Filter out articles without a headline or link
+                articles = [a for a in articles if a.get('headline') and a.get('link')]
+                
+                # Log the date range in the data
+                if articles:
+                    newest = articles[0].get('published_at', articles[0].get('collected_at', 'Unknown'))
+                    oldest = articles[-1].get('published_at', articles[-1].get('collected_at', 'Unknown'))
+                    logger.info(f"Loaded {len(articles)} articles from {oldest} to {newest}")
+                
+                return articles
+            except Exception as e:
+                logger.error(f"Error sorting articles: {e}")
+                return articles
         
         except Exception as e:
             logger.error(f"Error loading news data: {e}")
@@ -89,14 +112,22 @@ class GCCBusinessNewsAnalyzer:
         # Convert to DataFrame for easier analysis
         df = pd.DataFrame(articles)
         
+        # Add proper datetime fields for analysis if they don't exist
+        if 'published_at' in df.columns:
+            # Use published_at for date analysis
+            date_field = 'published_at'
+        else:
+            # Fall back to collected_at if published_at doesn't exist
+            date_field = 'collected_at'
+        
         # Basic statistics
         stats = {
             'total_articles': len(df),
             'sources': df['source_name'].nunique(),
             'countries': df['country'].nunique(),
             'date_range': {
-                'earliest': df['collected_at'].min() if 'collected_at' in df else "Unknown",
-                'latest': df['collected_at'].max() if 'collected_at' in df else "Unknown"
+                'earliest': df[date_field].min() if date_field in df else "Unknown",
+                'latest': df[date_field].max() if date_field in df else "Unknown"
             },
             'source_distribution': df['source_name'].value_counts().to_dict(),
             'country_distribution': df['country'].value_counts().to_dict()
@@ -131,102 +162,121 @@ class GCCBusinessNewsAnalyzer:
         
         return stats
     
-    def _create_keyword_chart(self, keyword_counts, max_keywords=15):
-        """Create a bar chart of top keywords."""
+    def _create_keyword_chart(self, keyword_counts):
+        """Create a visualization of top keywords."""
         try:
-            # Sort and slice
-            sorted_keywords = sorted(keyword_counts.items(), key=lambda x: x[1], reverse=True)
-            top_keywords = sorted_keywords[:max_keywords]
+            # Sort by count and take top 15
+            top_keywords = dict(sorted(keyword_counts.items(), key=lambda x: x[1], reverse=True)[:15])
             
-            # Prepare data
-            keywords = [item[0] for item in top_keywords]
-            counts = [item[1] for item in top_keywords]
-            
-            # Create the plot
-            plt.figure(figsize=(12, 6))
-            sns.barplot(x=counts, y=keywords)
-            plt.title('Top Keywords Mentioned in Business News')
-            plt.xlabel('Weighted Frequency')
+            plt.figure(figsize=(10, 6))
+            plt.bar(top_keywords.keys(), top_keywords.values(), color='skyblue')
+            plt.xticks(rotation=45, ha='right')
+            plt.title('Top Keywords in UAE/GCC Business News')
+            plt.xlabel('Keyword')
+            plt.ylabel('Weighted Mentions')
             plt.tight_layout()
             
             # Save the figure
-            chart_path = os.path.join(self.reports_dir, 'keyword_analysis.png')
-            plt.savefig(chart_path)
+            output_path = os.path.join(self.reports_dir, 'keyword_analysis.png')
+            plt.savefig(output_path)
             plt.close()
             
-            logger.info(f"Keyword analysis chart saved to {chart_path}")
+            logger.info(f"Keyword chart saved to {output_path}")
+            
         except Exception as e:
             logger.error(f"Error creating keyword chart: {e}")
     
     def _generate_system_prompt(self):
-        """Generate the system prompt for the LLM."""
+        """Generate system prompt for report generation."""
         return """
-        You are a business intelligence analyst specializing in UAE and GCC markets. Your task is to create a 
-        professional daily business intelligence report in the style of Global Possibilities.
-
-        The report should follow this structure:
-        1. Title: "Global Possibilities - Daily Business Intelligence Report: [CURRENT_DATE]"
-        2. Three key industry updates, each formatted as follows:
-           - Clear headline/title
-           - Brief summary of the update (1-2 paragraphs)
-           - Bullet points for key details
-           - "Key Takeaway" section highlighted at the end of each update
-
-        Maintain a formal but accessible business tone. Keep the language concise, clear, and professional.
-        Include relevant business insights where applicable. Focus on the most significant developments.
-
-        If available, include one section specifically about US-UAE business or diplomatic relations.
+        You are an expert business intelligence analyst specializing in UAE and GCC markets with a focus
+        on US-UAE relations. You create comprehensive and insightful reports for business professionals.
         
-        Use markdown formatting for the report, with proper section headers, bullet points, and emphasis where appropriate.
+        Your report should:
+        1. Be well-structured with clear sections and subsections
+        2. Focus on business trends, opportunities, and strategic insights
+        3. Highlight implications for US-UAE business relations
+        4. Include actionable intelligence for decision-makers
+        5. Be professional but engaging in tone
+        6. Include a mix of high-level overview and specific details
+        
+        Structure your report with these sections:
+        - Executive Summary (brief overview of key findings)
+        - Market Analysis (key trends and developments)
+        - US-UAE Relations (recent developments and opportunities)
+        - Sector Highlights (key sectors showing activity)
+        - Strategic Opportunities (potential business opportunities)
+        - Action Points (recommended next steps for businesses)
         """
-
+    
     def _generate_user_prompt(self, articles, stats):
-        """Generate the user prompt for the LLM based on the articles and stats."""
-        article_summaries = []
+        """Generate user prompt for the OpenAI API."""
+        prompt = f"""
+        Generate a comprehensive business intelligence report based on the following news data collected on {datetime.now().strftime('%B %d, %Y')}.
         
-        for i, article in enumerate(articles[:20]):  # Limit to 20 articles to keep within token limits
-            title = article.get('headline', 'No title')
-            source = article.get('source_name', 'Unknown source')
-            summary = article.get('summary', 'No summary available')
-            url = article.get('url', '')
-            published_at = article.get('published_at', 'Unknown date')
-            
-            article_summary = f"{i+1}. \"{title}\" ({source}, {published_at})\n{summary}\nSource: {url}\n"
-            article_summaries.append(article_summary)
+        DATA OVERVIEW:
+        - Total articles analyzed: {stats.get('total_articles', 0)}
+        - Sources: {stats.get('sources', 0)} different news outlets
+        - Countries covered: {stats.get('countries', 0)}
+        - Date range: {stats.get('date_range', {}).get('earliest', 'Unknown')} to {stats.get('date_range', {}).get('latest', 'Unknown')}
         
-        article_text = "\n".join(article_summaries)
-        
-        # Get current date in readable format
-        current_date = datetime.now().strftime("%B %d, %Y")
-        
-        return f"""
-        Today's Date: {current_date}
-
-        Based on the following news articles from UAE/GCC region, create a daily business intelligence report.
-        Focus on the 3 most significant developments that business leaders should know about.
-
-        NEWS ARTICLES:
-        {article_text}
-
-        STATISTICS:
-        - Total articles: {stats.get('total_articles', 0)}
-        - Top sources: {', '.join(stats.get('top_sources', [])[:3])}
-        - Top topics: {', '.join(stats.get('top_keywords', [])[:5])}
-
-        Follow the structure outlined in your instructions. Be concise yet comprehensive. 
-        Focus on the business implications of each development.
+        TOP KEYWORDS (with mention count):
         """
-
+        
+        # Add top keywords
+        if 'keyword_analysis' in stats and stats['keyword_analysis']:
+            sorted_keywords = sorted(stats['keyword_analysis'].items(), key=lambda x: x[1], reverse=True)
+            for keyword, count in sorted_keywords[:10]:  # Top 10 keywords
+                prompt += f"- {keyword}: {count}\n"
+        else:
+            prompt += "No significant keywords detected.\n"
+        
+        # Add top news articles
+        prompt += "\nKEY ARTICLES:\n"
+        for i, article in enumerate(articles[:15]):  # Top 15 articles
+            if i >= 15:
+                break
+                
+            headline = article.get('headline', '')
+            source = article.get('source_name', '')
+            summary = article.get('summary', '')
+            date = article.get('published_at', article.get('collected_at', ''))
+            
+            prompt += f"""
+            Article {i+1}:
+            - Headline: {headline}
+            - Source: {source}
+            - Date: {date}
+            - Summary: {summary}
+            """
+        
+        prompt += """
+        REPORT REQUIREMENTS:
+        - The report should be in professional Markdown format
+        - Include a detailed executive summary
+        - Focus on the most significant business trends and opportunities
+        - Highlight implications for US-UAE business relations
+        - Organize insights by sector where possible
+        - Provide actionable intelligence for business leaders
+        - Generate appropriate section headings and structure
+        """
+        
+        return prompt
+    
     def generate_report_with_llm(self, articles, stats):
         """Generate a report using OpenAI's language model."""
-        if not articles or not self.api_key:
-            return self._generate_fallback_report(articles, stats)
+        if not articles:
+            return self._generate_fallback_report(articles, stats, "No articles available")
+            
+        if not self.api_key:
+            return self._generate_fallback_report(articles, stats, "OpenAI API key not configured")
         
         system_prompt = self._generate_system_prompt()
         user_prompt = self._generate_user_prompt(articles, stats)
         
+        # Try with GPT-4o first
         try:
-            logger.info("Generating report using OpenAI API with exponential backoff.")
+            logger.info("Generating report using GPT-4o model with exponential backoff.")
             response = self.openai_client.create_chat_completion(
                 model="gpt-4o",  # Using the latest GPT model for best results
                 messages=[
@@ -236,43 +286,102 @@ class GCCBusinessNewsAnalyzer:
                 temperature=0.3
             )
             
-            logger.info("Report generated successfully.")
+            logger.info("Report generated successfully with GPT-4o.")
             return response.choices[0].message.content
         except Exception as e:
-            logger.error(f"Error generating report with OpenAI: {e}")
-            return self._generate_fallback_report(articles, stats)
+            logger.error(f"Error generating report with GPT-4o: {e}")
+            
+            # Fallback to GPT-3.5-Turbo if GPT-4 fails
+            try:
+                logger.info("Falling back to GPT-3.5-Turbo model.")
+                response = self.openai_client.create_chat_completion(
+                    model="gpt-3.5-turbo",  # Fallback to GPT-3.5-Turbo
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    temperature=0.3
+                )
+                
+                logger.info("Report generated successfully with GPT-3.5-Turbo.")
+                return response.choices[0].message.content
+            except Exception as e2:
+                logger.error(f"Error generating report with GPT-3.5-Turbo: {e2}")
+                return self._generate_fallback_report(articles, stats, f"OpenAI API errors: {e}, {e2}")
 
-    def _generate_fallback_report(self, articles, stats):
-        """Generate a fallback report when OpenAI is unavailable."""
+    def _generate_fallback_report(self, articles, stats, error_reason="API limitations"):
+        """Generate a more comprehensive fallback report when OpenAI is unavailable."""
         current_date = datetime.now().strftime("%B %d, %Y")
         
         report = f"""# Global Possibilities - Daily Business Intelligence Report: {current_date}
 
 ## Executive Summary
-This is an automated fallback report generated due to API limitations. 
+This is an automated report generated due to {error_reason}. 
 We've collected {stats.get('total_articles', 0)} news articles from various sources in the UAE/GCC region.
+
+### Data Overview
+- **Total Articles**: {stats.get('total_articles', 0)}
+- **Sources**: {stats.get('sources', 0)} different news outlets
+- **Countries covered**: {stats.get('countries', 0)}
+- **Date range**: From {stats.get('date_range', {}).get('earliest', 'Unknown')} to {stats.get('date_range', {}).get('latest', 'Unknown')}
 
 """
         
-        # Add top news articles as updates
-        for i, article in enumerate(articles[:3]):
-            if i >= 3:  # Limit to 3 key updates
-                break
-                
-            title = article.get('headline', 'Business Update')
-            source = article.get('source_name', 'Unknown source')
-            summary = article.get('summary', 'No details available')
+        # Add source distribution if available
+        if 'source_distribution' in stats and stats['source_distribution']:
+            report += "### Source Distribution\n"
+            for source, count in stats['source_distribution'].items():
+                report += f"- **{source}**: {count} articles\n"
+            report += "\n"
+        
+        # Add keyword mentions if available
+        if 'keyword_analysis' in stats and stats['keyword_analysis']:
+            report += "### Top Keywords\n"
+            sorted_keywords = sorted(stats['keyword_analysis'].items(), key=lambda x: x[1], reverse=True)
+            for keyword, count in sorted_keywords[:10]:  # Top 10 keywords
+                report += f"- **{keyword}**: {count} mentions\n"
+            report += "\n"
             
-            report += f"""## Update {i+1}: {title}
+        report += "## Key Updates\n"
+        
+        # Add top news articles as updates
+        if articles:
+            for i, article in enumerate(articles[:5]):  # Increased from 3 to 5 articles
+                if i >= 5:
+                    break
+                    
+                title = article.get('headline', 'Business Update')
+                source = article.get('source_name', 'Unknown source')
+                summary = article.get('summary', 'No details available')
+                link = article.get('link', '#')
+                
+                report += f"""### Update {i+1}: {title}
 
 {summary}
 
-### Key Details:
+**Key Details:**
 * Reported by {source}
-* Published on {article.get('published_at', 'Unknown date')}
+* Published on {article.get('published_at', article.get('collected_at', 'Unknown date'))}
 * Category: {article.get('category', 'General')}
+* [Read full article]({link})
 
-**Key Takeaway:** This intelligence requires further analysis as it was generated in fallback mode.
+"""
+        else:
+            report += "No articles available for updates.\n"
+            
+        # Add US-UAE relations section
+        report += """
+## US-UAE Relations Overview
+The United States and United Arab Emirates continue to maintain strong diplomatic and economic ties. 
+Key areas of collaboration include trade, investment, security, and cultural exchange.
+
+## Recent Economic Indicators
+- UAE non-oil sector remains resilient
+- Technology investments continue to grow
+- Regional trade relationships are expanding
+
+## Next Steps
+For a more detailed analysis, please ensure the OpenAI API key is functioning correctly and run the report generation again.
 
 """
         
@@ -281,8 +390,7 @@ We've collected {stats.get('total_articles', 0)} news articles from various sour
 
 ---
 
-*This is an automated report by Global Possibilities. For more comprehensive analysis, please ensure
-your OpenAI API key has sufficient quota.*
+*This is an automated report by Global Possibilities. This fallback report contains basic information extracted directly from the source data without AI-enhanced analysis.*
 """
         
         return report
@@ -321,9 +429,8 @@ your OpenAI API key has sufficient quota.*
             logger.error(f"Error generating daily report: {e}")
             return None, f"Error generating report: {str(e)}"
 
-
 if __name__ == "__main__":
-    # Test the analyzer
+    # Simple test when run directly
     analyzer = GCCBusinessNewsAnalyzer()
     articles = analyzer.load_news_data()
     if articles:

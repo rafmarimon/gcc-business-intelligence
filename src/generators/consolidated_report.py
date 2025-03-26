@@ -14,6 +14,7 @@ from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
 import weasyprint
+import re
 
 # Setup base path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -58,12 +59,12 @@ class ConsolidatedReportGenerator:
         if not standalone_mode:
             try:
                 self.analyzer = GCCBusinessNewsAnalyzer(
-                    config_file='config.json',
+                    config_path='config/news_sources.json',
                     model='gpt-4o'
                 )
                 
                 self.linkedin_generator = LinkedInContentGenerator(
-                    config_file='config.json',
+                    config_path='config/linkedin_config.json',
                     model='gpt-4o'
                 )
             except Exception as e:
@@ -77,6 +78,43 @@ class ConsolidatedReportGenerator:
             
         logger.info(f"Consolidated Report Generator initialized with reports directory: {self.reports_dir}")
         logger.info(f"Standalone mode: {standalone_mode}")
+    
+    def generate_all(self, articles=None):
+        """Generate a complete report from collected articles.
+        
+        Args:
+            articles: List of news articles collected from sources
+            
+        Returns:
+            tuple: (markdown_path, html_path, pdf_path) - paths to the generated files
+        """
+        try:
+            logger.info("Processing articles and generating report...")
+            
+            # If articles are provided, analyze them
+            if articles and self.analyzer:
+                # Process articles to generate report content
+                report_text = self.analyzer.analyze_news(articles)
+                
+                # Generate LinkedIn posts if analyzer is available
+                linkedin_posts = None
+                if self.linkedin_generator:
+                    linkedin_posts = self.linkedin_generator.generate_linkedin_posts(report_text)
+            else:
+                # For testing or when articles aren't provided
+                logger.warning("No articles provided or analyzer not available")
+                # Generate a simple report with placeholder content
+                current_date = datetime.now().strftime("%B %d, %Y")
+                report_text = f"## GCC Business Intelligence: {current_date}\n\n"
+                report_text += "No articles were provided for analysis. This is a placeholder report."
+                linkedin_posts = None
+            
+            # Generate the complete report with the processed content
+            return self.generate(report_text, linkedin_posts)
+            
+        except Exception as e:
+            logger.error(f"Error in generate_all: {e}")
+            return None, None, None
     
     def generate(self, report_text, linkedin_posts=None):
         """Generate a consolidated report with daily reports and LinkedIn posts."""
@@ -183,7 +221,11 @@ class ConsolidatedReportGenerator:
             return None, None
     
     def _create_html_version(self, markdown_path):
-        """Create an HTML version of the consolidated report for easier viewing."""
+        """Create an HTML version of the consolidated report for easier viewing.
+        
+        This method will convert the markdown to HTML and add hyperlinked headlines
+        to the original articles where possible.
+        """
         try:
             # Read the markdown content
             with open(markdown_path, 'r', encoding='utf-8') as f:
@@ -202,138 +244,124 @@ class ConsolidatedReportGenerator:
                 formatted_date = date_obj.strftime('%B %d, %Y')
                 formatted_time = date_obj.strftime('%I:%M %p')
             except:
-                formatted_date = datetime.now().strftime('%B %d, %Y')
-                formatted_time = datetime.now().strftime('%I:%M %p')
-                
-            # Create output path
-            html_path = markdown_path.replace('.md', '.html')
+                formatted_date = "Unknown Date"
+                formatted_time = "Unknown Time"
             
-            # Create HTML document
+            # Create assets directory for images and CSS
+            assets_dir = os.path.join(self.reports_dir, 'assets')
+            os.makedirs(assets_dir, exist_ok=True)
+            
+            # Create or copy CSS file
+            css_content = self._get_default_css()
+            css_path = os.path.join(assets_dir, 'report.css')
+            with open(css_path, 'w', encoding='utf-8') as f:
+                f.write(css_content)
+            
+            # Add header image/logo if exists
+            header_img = None
+            logo_path = os.path.join(assets_dir, 'logo.png')
+            if os.path.exists(logo_path):
+                header_img = 'assets/logo.png'
+            
+            # Process HTML to add hyperlinks to headlines
+            soup = BeautifulSoup(html_content, 'html.parser')
+            
+            # Find all headings that look like article headlines
+            for heading in soup.find_all(['h2', 'h3', 'h4']):
+                # Skip section headings like "Business Intelligence Report" or "LinkedIn Posts"
+                if heading.get_text().strip() in ["Business Intelligence Report", "LinkedIn Posts", "Table of Contents"]:
+                    continue
+                    
+                # Look for URLs in the text after this heading - can be in paragraphs or lists
+                next_elements = []
+                current = heading.next_sibling
+                
+                # Collect the next few elements after the heading
+                while current and len(next_elements) < 5:
+                    if current.name in ['p', 'li', 'ul', 'ol']:
+                        next_elements.append(current)
+                    current = current.next_sibling
+                
+                # Look for URL patterns in these elements
+                url = None
+                for element in next_elements:
+                    text = element.get_text()
+                    # Look for common URL patterns or Source: mentions
+                    url_match = re.search(r'https?://[^\s]+', text)
+                    source_match = re.search(r'Source:\s*(https?://[^\s]+)', text)
+                    
+                    if url_match:
+                        url = url_match.group(0)
+                        break
+                    elif source_match:
+                        url = source_match.group(1)
+                        break
+                
+                # If we found a URL, wrap the heading in a link
+                if url:
+                    # Create a new a tag
+                    new_a = soup.new_tag('a', href=url, target='_blank')
+                    
+                    # Move the heading contents into the link
+                    for content in list(heading.contents):
+                        new_a.append(content.extract())
+                    
+                    # Add the link to the heading
+                    heading.append(new_a)
+            
+            # Add the chatbot if needed
+            chatbot_html = self._get_chatbot_html(timestamp)
+            if chatbot_html:
+                # Find the spot to insert chatbot - after LinkedIn Posts or at the end
+                linkedin_section = soup.find(lambda tag: tag.name in ['h1', 'h2'] and 'LinkedIn Posts' in tag.get_text())
+                if linkedin_section:
+                    # Find the position after the LinkedIn content
+                    current = linkedin_section
+                    while current and current.name != 'hr':
+                        current = current.find_next()
+                    
+                    if current:
+                        chatbot_div = BeautifulSoup(chatbot_html, 'html.parser')
+                        current.insert_after(chatbot_div)
+                else:
+                    # Add at the end
+                    chatbot_div = BeautifulSoup(chatbot_html, 'html.parser')
+                    soup.append(chatbot_div)
+            
+            # Get the updated HTML content
+            processed_html = str(soup)
+            
+            # Create the complete HTML document with styling
+            html_path = markdown_path.replace('.md', '.html')
             with open(html_path, 'w', encoding='utf-8') as f:
                 f.write(f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Business Intelligence Report - {formatted_date}</title>
-    <style>
-        body {{
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }}
-        
-        h1, h2, h3, h4, h5, h6 {{
-            color: #2c3e50;
-            margin-top: 1.5em;
-        }}
-        
-        h1 {{
-            border-bottom: 2px solid #3498db;
-            padding-bottom: 10px;
-        }}
-        
-        h2 {{
-            border-bottom: 1px solid #ddd;
-            padding-bottom: 5px;
-        }}
-        
-        a {{
-            color: #3498db;
-            text-decoration: none;
-        }}
-        
-        a:hover {{
-            text-decoration: underline;
-        }}
-        
-        pre {{
-            background-color: #f8f9fa;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            padding: 15px;
-            overflow-x: auto;
-        }}
-        
-        code {{
-            font-family: Consolas, Monaco, 'Andale Mono', monospace;
-            background-color: #f8f9fa;
-            padding: 2px 4px;
-            border-radius: 3px;
-        }}
-        
-        table {{
-            border-collapse: collapse;
-            width: 100%;
-            margin: 20px 0;
-        }}
-        
-        th, td {{
-            border: 1px solid #ddd;
-            padding: 8px 12px;
-            text-align: left;
-        }}
-        
-        th {{
-            background-color: #f2f2f2;
-        }}
-        
-        tr:nth-child(even) {{
-            background-color: #f9f9f9;
-        }}
-        
-        blockquote {{
-            border-left: 4px solid #3498db;
-            margin-left: 0;
-            padding-left: 20px;
-            color: #555;
-        }}
-        
-        hr {{
-            border: 0;
-            border-top: 1px solid #eee;
-            margin: 30px 0;
-        }}
-        
-        .report-header {{
-            background-color: #f8f9fa;
-            border-radius: 5px;
-            padding: 15px;
-            margin-bottom: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }}
-        
-        .timestamp {{
-            font-size: 0.9em;
-            color: #6c757d;
-            text-align: right;
-        }}
-    </style>
+    <title>Business Intelligence Report: {formatted_date}</title>
+    <link rel="stylesheet" href="assets/report.css">
 </head>
 <body>
-    <div class="report-header">
-        <div>
-            <h1>Business Intelligence Report</h1>
-            <p>Global Possibilities UAE/GCC Market Analysis</p>
+    <div class="report-container">
+        <div class="report-header">
+            <div class="header-content">
+                {"<img src='" + header_img + "' alt='Logo' class='logo'>" if header_img else ""}
+                <div class="header-text">
+                    <h1>Business Intelligence Report</h1>
+                    <div class="date-badge">{formatted_date}</div>
+                </div>
+            </div>
         </div>
-        <div class="timestamp">
-            <div><strong>Generated:</strong> {formatted_date}</div>
-            <div><strong>Time:</strong> {formatted_time}</div>
-            <div><strong>Report ID:</strong> {timestamp}</div>
+        
+        <div class="report-body">
+            {processed_html}
+        </div>
+        
+        <div class="report-footer">
+            <p>© Global Possibilities. Report generated on {formatted_date} at {formatted_time}.</p>
         </div>
     </div>
-    
-    {html_content}
-    
-    <footer style="margin-top: 50px; text-align: center; font-size: 0.8em; color: #6c757d;">
-        <p>© Global Possibilities. All rights reserved.</p>
-        <p>Report generated on {formatted_date} at {formatted_time}</p>
-    </footer>
 </body>
 </html>""")
             
@@ -492,6 +520,463 @@ class ConsolidatedReportGenerator:
         except Exception as e:
             logger.error(f"Error formatting LinkedIn posts: {e}")
             return None
+
+    def _get_default_css(self):
+        """Get the default CSS styling for the HTML report."""
+        return """
+/* Global Possibilities Business Intelligence Report Styling */
+:root {
+    --primary-color: #2c3e50;
+    --accent-color: #3498db;
+    --bg-color: #ffffff;
+    --text-color: #333333;
+    --light-bg: #f8f9fa;
+    --border-color: #ddd;
+    --success-color: #27ae60;
+    --warning-color: #f39c12;
+    --danger-color: #e74c3c;
+    --font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+/* Base Styles */
+body {
+    font-family: var(--font-family);
+    line-height: 1.6;
+    color: var(--text-color);
+    background-color: var(--light-bg);
+    margin: 0;
+    padding: 0;
+}
+
+.report-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background-color: var(--bg-color);
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+}
+
+/* Header Styles */
+.report-header {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 2rem;
+    position: relative;
+}
+
+.header-content {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.logo {
+    max-height: 80px;
+    max-width: 200px;
+}
+
+.header-text h1 {
+    margin: 0;
+    padding: 0;
+    font-size: 2.2rem;
+    font-weight: 700;
+}
+
+.date-badge {
+    display: inline-block;
+    background-color: rgba(255, 255, 255, 0.2);
+    padding: 0.3rem 0.8rem;
+    border-radius: 50px;
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+}
+
+/* Report Body */
+.report-body {
+    padding: 2rem;
+    min-height: 70vh;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--primary-color);
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+h1 {
+    font-size: 2.2rem;
+    border-bottom: 2px solid var(--accent-color);
+    padding-bottom: 0.3em;
+}
+
+h2 {
+    font-size: 1.8rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.2em;
+}
+
+h3 {
+    font-size: 1.5rem;
+}
+
+h4 {
+    font-size: 1.3rem;
+}
+
+p {
+    margin: 1em 0;
+}
+
+a {
+    color: var(--accent-color);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+a:hover {
+    color: #1d6fa5;
+    text-decoration: underline;
+}
+
+/* Table Styles */
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1.5em 0;
+    overflow-x: auto;
+    display: block;
+}
+
+@media (min-width: 768px) {
+    table {
+        display: table;
+    }
+}
+
+th, td {
+    border: 1px solid var(--border-color);
+    padding: 0.75rem;
+    text-align: left;
+}
+
+th {
+    background-color: var(--light-bg);
+    font-weight: 600;
+}
+
+tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+/* Code Blocks */
+pre {
+    background-color: var(--light-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 1em;
+    overflow-x: auto;
+    margin: 1.5em 0;
+}
+
+code {
+    font-family: 'Consolas', 'Monaco', 'Andale Mono', monospace;
+    font-size: 0.9em;
+    background-color: var(--light-bg);
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+}
+
+/* Lists */
+ul, ol {
+    margin: 1em 0;
+    padding-left: 2em;
+}
+
+li {
+    margin-bottom: 0.5em;
+}
+
+/* Blockquotes */
+blockquote {
+    border-left: 4px solid var(--accent-color);
+    margin: 1.5em 0;
+    padding: 0.5em 1em;
+    color: #555;
+    background-color: #f9f9f9;
+}
+
+/* Horizontal Rule */
+hr {
+    border: 0;
+    border-top: 1px solid var(--border-color);
+    margin: 2em 0;
+}
+
+/* Links in Headings */
+h2 a, h3 a, h4 a {
+    color: inherit;
+    text-decoration: none;
+    position: relative;
+    display: inline-block;
+    width: 100%;
+}
+
+h2 a:hover, h3 a:hover, h4 a:hover {
+    color: var(--accent-color);
+}
+
+h2 a::after, h3 a::after, h4 a::after {
+    content: "🔗";
+    font-size: 0.8em;
+    margin-left: 8px;
+    opacity: 0.6;
+    vertical-align: middle;
+}
+
+/* Footer */
+.report-footer {
+    background-color: var(--primary-color);
+    color: rgba(255, 255, 255, 0.7);
+    text-align: center;
+    padding: 1.5rem;
+    font-size: 0.9rem;
+}
+
+.report-footer p {
+    margin: 0;
+}
+
+/* Chatbot Container */
+.chatbot-container {
+    margin-top: 3rem;
+    padding: 1.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background-color: var(--light-bg);
+}
+
+.chatbot-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.chatbot-header h3 {
+    margin: 0;
+    color: var(--primary-color);
+}
+
+.chatbot-icon {
+    margin-right: 0.8rem;
+    color: var(--accent-color);
+    font-size: 1.5rem;
+}
+
+.chat-interface {
+    background-color: white;
+    border-radius: 8px;
+    padding: 1rem;
+    min-height: 300px;
+}
+
+.chat-input-container {
+    display: flex;
+    margin-top: 1rem;
+}
+
+.chat-input {
+    flex: 1;
+    padding: 0.8rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-family: inherit;
+}
+
+.chat-send-btn {
+    background-color: var(--accent-color);
+    color: white;
+    border: none;
+    padding: 0 1.2rem;
+    margin-left: 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.chat-send-btn:hover {
+    background-color: #2980b9;
+}
+
+/* Print Styles */
+@media print {
+    body {
+        background-color: white;
+    }
+    
+    .report-container {
+        box-shadow: none;
+        max-width: 100%;
+    }
+    
+    .report-header {
+        background-color: white !important;
+        color: black !important;
+        padding: 1rem 0;
+    }
+    
+    .date-badge {
+        background-color: #f1f1f1;
+        color: black;
+    }
+    
+    .chatbot-container {
+        display: none;
+    }
+    
+    a {
+        text-decoration: none !important;
+        color: black !important;
+    }
+    
+    h2 a::after, h3 a::after, h4 a::after {
+        content: "";
+    }
+    
+    .report-footer {
+        background-color: white !important;
+        color: black !important;
+        border-top: 1px solid #eee;
+        padding: 1rem 0;
+    }
+}
+"""
+
+    def _get_chatbot_html(self, timestamp):
+        """Get the HTML for the interactive chatbot."""
+        # Check if OpenAI API key is set
+        if not os.getenv('OPENAI_API_KEY'):
+            return None
+        
+        # Only include chatbot in HTML version, not PDF
+        chatbot_html = f"""
+        <div class="chatbot-container">
+            <div class="chatbot-header">
+                <div class="chatbot-icon">💬</div>
+                <h3>Business Intelligence Assistant</h3>
+            </div>
+            <p>Ask questions about this report or request additional insights about GCC business trends.</p>
+            <div class="chat-interface" id="chat-messages">
+                <div id="welcome-message" style="color: #666; margin-bottom: 15px;">
+                    <strong>Assistant:</strong> Hello! I can answer questions about this business intelligence report
+                    and provide additional insights about GCC markets. What would you like to know?
+                </div>
+            </div>
+            <div class="chat-input-container">
+                <input type="text" id="chat-input" class="chat-input" placeholder="Type your question here..." />
+                <button id="chat-send" class="chat-send-btn">Send</button>
+            </div>
+        </div>
+        
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {{
+            const chatMessages = document.getElementById('chat-messages');
+            const chatInput = document.getElementById('chat-input');
+            const chatSendBtn = document.getElementById('chat-send');
+            
+            // Store report content
+            const reportContent = document.querySelector('.report-body').innerText;
+            
+            // Function to add a message to the chat
+            function addMessage(sender, message) {{
+                const msgDiv = document.createElement('div');
+                msgDiv.style.marginBottom = '10px';
+                
+                if (sender === 'user') {{
+                    msgDiv.innerHTML = '<strong>You:</strong> ' + message;
+                    msgDiv.style.textAlign = 'right';
+                    msgDiv.style.color = '#2c3e50';
+                }} else {{
+                    msgDiv.innerHTML = '<strong>Assistant:</strong> ' + message;
+                    msgDiv.style.color = '#333';
+                }}
+                
+                chatMessages.appendChild(msgDiv);
+                
+                // Scroll to bottom
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }}
+            
+            // Function to send a message
+            function sendMessage() {{
+                const message = chatInput.value.trim();
+                if (!message) return;
+                
+                // Add user message
+                addMessage('user', message);
+                
+                // Clear input
+                chatInput.value = '';
+                
+                // Add loading indicator
+                const loadingDiv = document.createElement('div');
+                loadingDiv.id = 'loading-indicator';
+                loadingDiv.innerHTML = '<strong>Assistant:</strong> <em>Thinking...</em>';
+                loadingDiv.style.color = '#999';
+                chatMessages.appendChild(loadingDiv);
+                
+                // Make API call
+                fetch('/api/chat', {{
+                    method: 'POST',
+                    headers: {{
+                        'Content-Type': 'application/json'
+                    }},
+                    body: JSON.stringify({{
+                        message: message,
+                        report_content: reportContent,
+                        report_id: '{timestamp}'
+                    }})
+                }})
+                .then(response => response.json())
+                .then(data => {{
+                    // Remove loading indicator
+                    const loadingIndicator = document.getElementById('loading-indicator');
+                    if (loadingIndicator) {{
+                        loadingIndicator.remove();
+                    }}
+                    
+                    if (data.error) {{
+                        addMessage('assistant', 'Error: ' + data.error);
+                    }} else {{
+                        addMessage('assistant', data.reply);
+                    }}
+                }})
+                .catch(error => {{
+                    // Remove loading indicator
+                    const loadingIndicator = document.getElementById('loading-indicator');
+                    if (loadingIndicator) {{
+                        loadingIndicator.remove();
+                    }}
+                    
+                    console.error('Error:', error);
+                    addMessage('assistant', 'Sorry, there was an error processing your request. Please try again.');
+                }});
+            }}
+            
+            // Event listeners
+            chatSendBtn.addEventListener('click', sendMessage);
+            
+            chatInput.addEventListener('keypress', function(e) {{
+                if (e.key === 'Enter') {{
+                    sendMessage();
+                }}
+            }});
+        }});
+        </script>
+        """
+        
+        return chatbot_html
 
 if __name__ == "__main__":
     # Enable full standalone test without dependencies

@@ -12,6 +12,8 @@ import tensorflow as tf
 from tensorflow import keras
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
+import glob
+import seaborn as sns
 
 # Configure logging
 logging.basicConfig(
@@ -636,6 +638,438 @@ class ReportAnalyzer:
         plt.close()
         
         return output_path
+    
+    def get_tf_version(self):
+        """Return the current TensorFlow version."""
+        return tf.__version__
+    
+    def list_models(self):
+        """List available trained models."""
+        models_dir = os.path.join(self.data_dir, "models")
+        model_files = glob.glob(os.path.join(models_dir, "*.h5"))
+        
+        models = []
+        for model_file in model_files:
+            model_name = os.path.basename(model_file).replace(".h5", "")
+            models.append({
+                "name": model_name,
+                "path": model_file,
+                "created": datetime.fromtimestamp(os.path.getctime(model_file)).isoformat()
+            })
+        
+        return models
+    
+    def has_training_data(self):
+        """Check if training data is available."""
+        processed_dir = os.path.join(self.data_dir, "processed")
+        data_files = glob.glob(os.path.join(processed_dir, "*.csv"))
+        return len(data_files) > 0
+    
+    def get_data_summary(self):
+        """Get a summary of available data for ML training."""
+        processed_dir = os.path.join(self.data_dir, "processed")
+        
+        # Check for economic indicators data
+        economic_file = os.path.join(processed_dir, "economic_indicators.csv")
+        has_economic = os.path.exists(economic_file)
+        
+        # Check for industry metrics data
+        industry_files = glob.glob(os.path.join(processed_dir, "*_metrics.csv"))
+        industries = [os.path.basename(f).replace("_metrics.csv", "") for f in industry_files]
+        
+        # Check for trade data
+        trade_file = os.path.join(processed_dir, "bilateral_trade.csv")
+        has_trade = os.path.exists(trade_file)
+        
+        # Get available metrics
+        metrics = []
+        
+        if has_economic:
+            try:
+                df = pd.read_csv(economic_file)
+                for col in df.columns:
+                    if col != 'date':
+                        metrics.append({
+                            "id": col,
+                            "name": col.replace('_', ' ').title(),
+                            "category": "economic"
+                        })
+            except:
+                pass
+        
+        if has_trade:
+            try:
+                metrics.append({
+                    "id": "bilateral_trade",
+                    "name": "UAE-US Bilateral Trade",
+                    "category": "trade"
+                })
+            except:
+                pass
+                
+        for industry in industries:
+            try:
+                industry_file = os.path.join(processed_dir, f"{industry}_metrics.csv")
+                df = pd.read_csv(industry_file)
+                for col in df.columns:
+                    if col != 'date':
+                        metrics.append({
+                            "id": f"{industry}_{col}",
+                            "name": f"{industry.title()} {col.replace('_', ' ').title()}",
+                            "category": "industry"
+                        })
+            except:
+                pass
+        
+        return {
+            "has_economic_data": has_economic,
+            "has_trade_data": has_trade,
+            "industries": industries,
+            "metrics": metrics,
+            "total_metrics": len(metrics),
+            "data_points": self._count_data_points(processed_dir)
+        }
+    
+    def _count_data_points(self, processed_dir):
+        """Count the total number of data points available."""
+        count = 0
+        for csv_file in glob.glob(os.path.join(processed_dir, "*.csv")):
+            try:
+                df = pd.read_csv(csv_file)
+                count += df.size
+            except:
+                pass
+        return count
+    
+    def generate_visualization(self, viz_type, metric="gdp_growth", time_period="6m"):
+        """Generate a visualization of the specified type and metric."""
+        viz_dir = os.path.join(self.data_dir, "..", "forecasts", "visualizations")
+        os.makedirs(viz_dir, exist_ok=True)
+        
+        # Format timestamp for filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_path = os.path.join(viz_dir, f"{viz_type}_{metric}_{timestamp}.png")
+        
+        # Create figure and axis
+        plt.figure(figsize=(10, 6))
+        
+        # Different visualization types
+        if viz_type == "time_series":
+            self._generate_time_series_viz(metric, time_period, output_path)
+        elif viz_type == "correlation":
+            self._generate_correlation_viz(output_path)
+        elif viz_type == "forecast":
+            self._generate_forecast_viz(metric, time_period, output_path)
+        elif viz_type == "comparison":
+            self._generate_comparison_viz(metric, output_path)
+        elif viz_type == "distribution":
+            self._generate_distribution_viz(metric, output_path)
+        else:
+            # Default to time series
+            self._generate_time_series_viz(metric, time_period, output_path)
+        
+        return output_path
+    
+    def _generate_time_series_viz(self, metric, time_period, output_path):
+        """Generate a time series visualization."""
+        try:
+            # Load data for the metric
+            data = self._load_metric_data(metric)
+            
+            if data is None or data.empty:
+                self._generate_placeholder_viz("No data available for this metric", output_path)
+                return output_path
+            
+            # Plot the time series
+            plt.figure(figsize=(10, 6))
+            plt.plot(data.index, data.values, marker='o', linestyle='-', color='#3498db', linewidth=2)
+            
+            # Calculate and plot trend line
+            if len(data) > 1:
+                z = np.polyfit(range(len(data)), data.values, 1)
+                p = np.poly1d(z)
+                plt.plot(data.index, p(range(len(data))), "r--", linewidth=1)
+            
+            # Add labels and title
+            plt.title(f"{metric.replace('_', ' ').title()} Over Time", fontsize=16)
+            plt.xlabel("Date", fontsize=12)
+            plt.ylabel(f"{metric.replace('_', ' ').title()}", fontsize=12)
+            
+            # Add grid
+            plt.grid(True, alpha=0.3)
+            
+            # Rotate x-axis labels for better readability
+            plt.xticks(rotation=45)
+            
+            # Tight layout
+            plt.tight_layout()
+            
+            # Save the figure
+            plt.savefig(output_path, dpi=100, bbox_inches='tight')
+            plt.close()
+            
+        except Exception as e:
+            logger.error(f"Error generating time series visualization: {str(e)}")
+            self._generate_placeholder_viz(f"Error: {str(e)}", output_path)
+        
+        return output_path
+    
+    def _generate_correlation_viz(self, output_path):
+        """Generate a correlation heatmap."""
+        try:
+            # Load economic indicators data
+            economic_file = os.path.join(self.data_dir, "processed", "economic_indicators.csv")
+            
+            if not os.path.exists(economic_file):
+                self._generate_placeholder_viz("No economic data available", output_path)
+                return output_path
+            
+            # Load data
+            df = pd.read_csv(economic_file)
+            df = df.drop(columns=['date'], errors='ignore')
+            
+            # Calculate correlation matrix
+            corr_matrix = df.corr()
+            
+            # Plot heatmap
+            plt.figure(figsize=(10, 8))
+            plt.imshow(corr_matrix, cmap='coolwarm', interpolation='none', aspect='auto')
+            plt.colorbar(label='Correlation')
+            
+            # Add correlation values
+            for i in range(len(corr_matrix)):
+                for j in range(len(corr_matrix)):
+                    plt.text(j, i, f"{corr_matrix.iloc[i, j]:.2f}", 
+                              ha="center", va="center", color="black")
+            
+            # Add labels
+            plt.xticks(range(len(corr_matrix)), corr_matrix.columns, rotation=45)
+            plt.yticks(range(len(corr_matrix)), corr_matrix.columns)
+            
+            # Title
+            plt.title("Correlation Between Economic Indicators", fontsize=16)
+            
+            # Tight layout
+            plt.tight_layout()
+            
+            # Save the figure
+            plt.savefig(output_path, dpi=100, bbox_inches='tight')
+            plt.close()
+            
+        except Exception as e:
+            logger.error(f"Error generating correlation visualization: {str(e)}")
+            self._generate_placeholder_viz(f"Error: {str(e)}", output_path)
+        
+        return output_path
+    
+    def _generate_forecast_viz(self, metric, time_period, output_path):
+        """Generate a forecast visualization."""
+        try:
+            # Load data for the metric
+            data = self._load_metric_data(metric)
+            
+            if data is None or data.empty:
+                self._generate_placeholder_viz("No data available for this metric", output_path)
+                return output_path
+            
+            # Prepare the plot
+            plt.figure(figsize=(10, 6))
+            
+            # Plot actual data
+            plt.plot(data.index, data.values, marker='o', linestyle='-', color='#3498db', 
+                     linewidth=2, label='Actual')
+            
+            # Generate simple forecast (linear extrapolation)
+            forecast_length = 6  # 6 points in the future
+            if len(data) > 1:
+                # Fit a trend line
+                x = np.arange(len(data))
+                z = np.polyfit(x, data.values, 1)
+                p = np.poly1d(z)
+                
+                # Generate forecast points
+                future_x = np.arange(len(data), len(data) + forecast_length)
+                forecast_values = p(future_x)
+                
+                # Generate future dates
+                last_date = data.index[-1]
+                future_dates = pd.date_range(start=last_date, periods=forecast_length + 1)[1:]
+                
+                # Plot forecast line
+                plt.plot(future_dates, forecast_values, 'r--', linewidth=2, label='Forecast')
+                
+                # Add confidence interval (simple approach)
+                std_dev = data.values.std()
+                plt.fill_between(future_dates, 
+                                 forecast_values - std_dev, 
+                                 forecast_values + std_dev, 
+                                 color='red', alpha=0.2, label='Confidence Range')
+            
+            # Add labels and title
+            plt.title(f"{metric.replace('_', ' ').title()} Forecast", fontsize=16)
+            plt.xlabel("Date", fontsize=12)
+            plt.ylabel(f"{metric.replace('_', ' ').title()}", fontsize=12)
+            
+            # Add legend
+            plt.legend()
+            
+            # Add grid
+            plt.grid(True, alpha=0.3)
+            
+            # Rotate x-axis labels for better readability
+            plt.xticks(rotation=45)
+            
+            # Tight layout
+            plt.tight_layout()
+            
+            # Save the figure
+            plt.savefig(output_path, dpi=100, bbox_inches='tight')
+            plt.close()
+            
+        except Exception as e:
+            logger.error(f"Error generating forecast visualization: {str(e)}")
+            self._generate_placeholder_viz(f"Error: {str(e)}", output_path)
+        
+        return output_path
+    
+    def _generate_comparison_viz(self, metric, output_path):
+        """Generate a comparison visualization."""
+        try:
+            # Load economic indicators data
+            economic_file = os.path.join(self.data_dir, "processed", "economic_indicators.csv")
+            
+            if not os.path.exists(economic_file):
+                self._generate_placeholder_viz("No economic data available", output_path)
+                return output_path
+            
+            # Load data
+            df = pd.read_csv(economic_file)
+            
+            # Ensure date column is properly formatted
+            df['date'] = pd.to_datetime(df['date'])
+            df = df.set_index('date').sort_index()
+            
+            # Plot bar chart for the latest data point
+            latest_data = df.iloc[-1].sort_values(ascending=False)
+            
+            plt.figure(figsize=(10, 6))
+            bars = plt.bar(latest_data.index, latest_data.values, color='#3498db')
+            
+            # Add value labels on top of each bar
+            for bar in bars:
+                height = bar.get_height()
+                plt.text(bar.get_x() + bar.get_width()/2., height + 0.1,
+                        f'{height:.2f}', ha='center', va='bottom')
+            
+            # Add labels and title
+            plt.title(f"Latest Economic Indicators Comparison", fontsize=16)
+            plt.ylabel("Value", fontsize=12)
+            
+            # Rotate x-axis labels for better readability
+            plt.xticks(rotation=45)
+            
+            # Tight layout
+            plt.tight_layout()
+            
+            # Save the figure
+            plt.savefig(output_path, dpi=100, bbox_inches='tight')
+            plt.close()
+            
+        except Exception as e:
+            logger.error(f"Error generating comparison visualization: {str(e)}")
+            self._generate_placeholder_viz(f"Error: {str(e)}", output_path)
+        
+        return output_path
+    
+    def _generate_distribution_viz(self, metric, output_path):
+        """Generate a distribution visualization."""
+        try:
+            # Load data for the metric
+            data = self._load_metric_data(metric)
+            
+            if data is None or data.empty:
+                self._generate_placeholder_viz("No data available for this metric", output_path)
+                return output_path
+            
+            # Create histogram
+            plt.figure(figsize=(10, 6))
+            
+            # Plot histogram with KDE
+            sns.histplot(data.values, kde=True, color='#3498db')
+            
+            # Add mean and median lines
+            mean_val = data.values.mean()
+            median_val = np.median(data.values)
+            
+            plt.axvline(mean_val, color='r', linestyle='--', label=f'Mean: {mean_val:.2f}')
+            plt.axvline(median_val, color='g', linestyle='-.', label=f'Median: {median_val:.2f}')
+            
+            # Add labels and title
+            plt.title(f"Distribution of {metric.replace('_', ' ').title()}", fontsize=16)
+            plt.xlabel(f"{metric.replace('_', ' ').title()}", fontsize=12)
+            plt.ylabel("Frequency", fontsize=12)
+            
+            # Add legend
+            plt.legend()
+            
+            # Tight layout
+            plt.tight_layout()
+            
+            # Save the figure
+            plt.savefig(output_path, dpi=100, bbox_inches='tight')
+            plt.close()
+            
+        except Exception as e:
+            logger.error(f"Error generating distribution visualization: {str(e)}")
+            self._generate_placeholder_viz(f"Error: {str(e)}", output_path)
+        
+        return output_path
+    
+    def _generate_placeholder_viz(self, message, output_path):
+        """Generate a placeholder visualization with an error message."""
+        plt.figure(figsize=(10, 6))
+        plt.text(0.5, 0.5, message, ha='center', va='center', fontsize=14)
+        plt.tight_layout()
+        plt.savefig(output_path, dpi=100, bbox_inches='tight')
+        plt.close()
+        return output_path
+    
+    def _load_metric_data(self, metric):
+        """Load data for a specific metric."""
+        # Parse the metric ID to determine which file to load
+        if '_' in metric:
+            parts = metric.split('_', 1)
+            if len(parts) == 2:
+                category, specific_metric = parts
+                
+                # Check if it's an industry metric
+                industry_file = os.path.join(self.data_dir, "processed", f"{category}_metrics.csv")
+                if os.path.exists(industry_file):
+                    df = pd.read_csv(industry_file)
+                    if specific_metric in df.columns:
+                        df['date'] = pd.to_datetime(df['date'])
+                        df = df.set_index('date').sort_index()
+                        return df[specific_metric]
+        
+        # Check economic indicators
+        economic_file = os.path.join(self.data_dir, "processed", "economic_indicators.csv")
+        if os.path.exists(economic_file):
+            df = pd.read_csv(economic_file)
+            if metric in df.columns:
+                df['date'] = pd.to_datetime(df['date'])
+                df = df.set_index('date').sort_index()
+                return df[metric]
+        
+        # Check bilateral trade
+        if metric == 'bilateral_trade':
+            trade_file = os.path.join(self.data_dir, "processed", "bilateral_trade.csv")
+            if os.path.exists(trade_file):
+                df = pd.read_csv(trade_file)
+                df['date'] = pd.to_datetime(df['date'])
+                df = df.set_index('date').sort_index()
+                return df['value']
+        
+        return None
 
 if __name__ == "__main__":
     # Test the report analyzer

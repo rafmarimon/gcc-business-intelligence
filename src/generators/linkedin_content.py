@@ -20,12 +20,23 @@ class LinkedInContentGenerator:
     """
     Generates professional LinkedIn content based on business intelligence reports.
     """
-    def __init__(self, output_dir='content'):
-        """Initialize the LinkedIn content generator."""
+    def __init__(self, output_dir='content', config_path='config/linkedin_config.json', model='gpt-4o'):
+        """Initialize the LinkedIn content generator.
+        
+        Args:
+            output_dir: Directory to store generated content
+            config_path: Path to the LinkedIn config JSON file
+            model: The OpenAI model to use (default: gpt-4o)
+        """
         self.output_dir = output_dir
+        self.config_path = config_path
+        self.model = model
         
         # Create output directory if it doesn't exist
         os.makedirs(self.output_dir, exist_ok=True)
+        
+        # Load configuration
+        self.config = self._load_config()
         
         # Set up OpenAI
         self.api_key = os.getenv('OPENAI_API_KEY')
@@ -34,6 +45,23 @@ class LinkedInContentGenerator:
         else:
             # Set up our OpenAI client with exponential backoff
             self.openai_client = OpenAIClient(self.api_key)
+    
+    def _load_config(self):
+        """Load LinkedIn post configuration from file."""
+        try:
+            with open(self.config_path, 'r') as f:
+                config = json.load(f)
+                logger.info(f"Loaded LinkedIn configuration from {self.config_path}")
+                return config
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            logger.error(f"Error loading LinkedIn config: {e}")
+            # Return default configuration
+            return {
+                "post_types": ["general", "market_update", "sector_focus", "investment_opportunities"],
+                "hashtags": ["#UAE", "#GCC", "#BusinessIntelligence", "#UAEBusiness", "#GulfBusiness"],
+                "post_frequency": 4,
+                "hashtags_per_post": {"min": 3, "max": 5}
+            }
     
     def _generate_system_prompt(self):
         """Generate system prompt for LinkedIn content generation."""
@@ -281,6 +309,169 @@ class LinkedInContentGenerator:
         except Exception as e:
             logger.error(f"Error saving LinkedIn post: {e}")
             return None
+    
+    def generate_linkedin_posts(self, report_text=None):
+        """Generate multiple LinkedIn posts based on report text or the latest report.
+        
+        Args:
+            report_text: The text content of the report. If None, will try to find the latest report.
+            
+        Returns:
+            str: Formatted markdown text with all the generated LinkedIn posts
+        """
+        logger.info("Generating LinkedIn posts from report text")
+        
+        # Define post types to generate
+        post_types = self.config.get("post_types", [])
+        if isinstance(post_types, list) and all(isinstance(item, dict) for item in post_types):
+            # If post_types is a list of dictionaries, extract the type field
+            post_types = [item["type"] for item in post_types if "type" in item]
+        elif not post_types:
+            # Fallback post types if none in config
+            post_types = ["general", "market_update", "sector_focus", "us_uae_relations"]
+            
+        # Get frequency from config with fallback
+        frequency = self.config.get("post_frequency", 4)
+        if frequency > len(post_types):
+            # Duplicate some post types to meet frequency
+            post_types = post_types * (frequency // len(post_types) + 1)
+        
+        # Take only the number needed
+        post_types = post_types[:frequency]
+        
+        # Generate posts
+        posts = []
+        for post_type in post_types:
+            try:
+                if report_text:
+                    # Generate from provided text directly
+                    post = self._generate_post_from_text(report_text, post_type)
+                else:
+                    # Find latest report file
+                    report_files = self._find_latest_report()
+                    if not report_files:
+                        logger.warning("No report files found and no report text provided.")
+                        continue
+                    
+                    # Generate post from the report file
+                    post = self.generate_post(report_files[0], post_type)
+                
+                if post:
+                    posts.append((post_type, post))
+            except Exception as e:
+                logger.error(f"Error generating post of type {post_type}: {e}")
+        
+        # Format all posts into markdown
+        return self._format_posts_to_markdown(posts)
+    
+    def _generate_post_from_text(self, report_text, post_type="general"):
+        """Generate a LinkedIn post directly from report text."""
+        try:
+            if not report_text:
+                logger.warning("Empty report text.")
+                return self._generate_fallback_post(post_type, "Empty report text")
+            
+            if not self.api_key:
+                return self._generate_fallback_post(post_type, "OpenAI API key not configured")
+            
+            system_prompt = self._generate_system_prompt()
+            user_prompt = self._generate_user_prompt(report_text, post_type)
+            
+            # Try with specified model
+            try:
+                logger.info(f"Generating {post_type} LinkedIn post using {self.model} model.")
+                response = self.openai_client.create_chat_completion(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    temperature=0.7,
+                    response_format={"type": "json_object"}
+                )
+                
+                # Parse the JSON response
+                content = response.choices[0].message.content
+                logger.info(f"LinkedIn post generated successfully with {self.model}.")
+                return self._format_post(content)
+                
+            except Exception as e:
+                logger.error(f"Error generating LinkedIn post with {self.model}: {e}")
+                
+                # Fallback to GPT-3.5-Turbo
+                if self.model != "gpt-3.5-turbo":
+                    try:
+                        logger.info("Falling back to GPT-3.5-Turbo model.")
+                        response = self.openai_client.create_chat_completion(
+                            model="gpt-3.5-turbo",
+                            messages=[
+                                {"role": "system", "content": system_prompt},
+                                {"role": "user", "content": user_prompt}
+                            ],
+                            temperature=0.7,
+                            response_format={"type": "json_object"}
+                        )
+                        
+                        # Parse the JSON response
+                        content = response.choices[0].message.content
+                        logger.info("LinkedIn post generated successfully with GPT-3.5-Turbo.")
+                        return self._format_post(content)
+                        
+                    except Exception as e2:
+                        logger.error(f"Error with fallback model: {e2}")
+                        return self._generate_fallback_post(post_type, f"OpenAI API errors: {e}, {e2}")
+                else:
+                    return self._generate_fallback_post(post_type, f"OpenAI API error: {e}")
+                
+        except Exception as e:
+            logger.error(f"Error generating LinkedIn post: {e}")
+            return self._generate_fallback_post(post_type, str(e))
+            
+    def _find_latest_report(self):
+        """Find the latest report files in the reports directory."""
+        try:
+            report_dir = 'reports'
+            if not os.path.exists(report_dir):
+                logger.warning(f"Reports directory '{report_dir}' not found.")
+                return []
+                
+            # Look for markdown files that match our naming pattern
+            md_files = [os.path.join(report_dir, f) for f in os.listdir(report_dir) 
+                      if f.endswith('.md') and f.startswith('consolidated_report_')]
+            
+            if not md_files:
+                logger.warning("No report files found.")
+                return []
+            
+            # Sort by creation time (newest first) and return
+            return sorted(md_files, key=os.path.getctime, reverse=True)
+            
+        except Exception as e:
+            logger.error(f"Error finding latest report: {e}")
+            return []
+            
+    def _format_posts_to_markdown(self, posts):
+        """Format a list of posts into markdown text.
+        
+        Args:
+            posts: List of tuples (post_type, post_text)
+            
+        Returns:
+            str: Formatted markdown with all posts
+        """
+        if not posts:
+            return "No LinkedIn posts were generated."
+            
+        formatted = "# LinkedIn Content\n\n"
+        
+        for i, (post_type, post_text) in enumerate(posts):
+            formatted += f"## Post {i+1}: {post_type.replace('_', ' ').title()}\n\n"
+            formatted += "```\n"
+            formatted += post_text
+            formatted += "\n```\n\n"
+            formatted += "---\n\n"
+            
+        return formatted
 
 # Example usage
 if __name__ == "__main__":

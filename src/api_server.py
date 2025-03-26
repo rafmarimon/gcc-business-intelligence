@@ -11,12 +11,6 @@ from flask import Flask, request, jsonify, send_from_directory, render_template
 from flask_cors import CORS
 from dotenv import load_dotenv
 
-# Add the project root to the path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-# Import our custom OpenAI client with exponential backoff
-from src.utils.openai_utils import OpenAIClient
-
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -27,15 +21,40 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 
+# Add the project root to the path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Import our custom OpenAI client with exponential backoff
+try:
+    from src.utils.openai_utils import OpenAIClient
+    # Initialize OpenAI client
+    api_key = os.getenv('OPENAI_API_KEY')
+    openai_client = OpenAIClient(api_key) if api_key else None
+except ImportError:
+    logger.warning("Could not import OpenAIClient - OpenAI features will be disabled")
+    openai_client = None
+
+# Import ML components
+try:
+    from src.ml.report_integration import MLReportIntegration
+    # Initialize ML component if available
+    ml_integration = MLReportIntegration()
+except ImportError:
+    logger.warning("Could not import MLReportIntegration - ML features will be disabled")
+    ml_integration = None
+    MLReportIntegration = None
+
 app = Flask(__name__, 
     static_folder='../reports',
     template_folder='templates'
 )
 CORS(app)  # Enable CORS for all routes
 
-# Initialize OpenAI client
-api_key = os.getenv('OPENAI_API_KEY')
-openai_client = OpenAIClient(api_key) if api_key else None
+# Ensure directories exist
+reports_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'reports')
+forecasts_dir = os.path.join(os.path.expanduser("~"), "gp_reports", "forecasts")
+os.makedirs(reports_dir, exist_ok=True)
+os.makedirs(forecasts_dir, exist_ok=True)
 
 @app.route('/')
 def index():
@@ -245,6 +264,189 @@ def serve_assets(path):
 def health_check():
     """Health check endpoint for the API"""
     return jsonify({"status": "healthy"})
+
+@app.route('/api/ml-status')
+def ml_status():
+    """Check if ML components are available"""
+    return jsonify({
+        "available": ml_integration is not None,
+        "tensorflow_version": ml_integration.report_analyzer.get_tf_version() if ml_integration else None,
+        "models_available": ml_integration.report_analyzer.list_models() if ml_integration else [],
+        "data_available": ml_integration.report_analyzer.has_training_data() if ml_integration else False
+    })
+
+@app.route('/api/generate-forecast', methods=['POST'])
+def generate_forecast():
+    """Generate a forecast report"""
+    if not ml_integration:
+        return jsonify({"error": "ML integration not available"}), 503
+    
+    try:
+        data = request.json or {}
+        report_type = data.get('report_type', 'monthly')
+        
+        # Start forecast generation in a background thread
+        def generate_forecast_task():
+            try:
+                if report_type == 'monthly':
+                    md_path, html_path, pdf_path = ml_integration.generate_monthly_forecast_report()
+                elif report_type == 'quarterly':
+                    md_path, html_path, pdf_path = ml_integration.generate_quarterly_forecast_report()
+                
+                logger.info(f"Generated forecast report: {html_path}")
+            except Exception as e:
+                logger.error(f"Error generating forecast: {str(e)}")
+        
+        # Start the forecast generation in a thread
+        thread = threading.Thread(target=generate_forecast_task)
+        thread.daemon = True
+        thread.start()
+        
+        return jsonify({
+            "status": "generating",
+            "message": f"Generating {report_type} forecast report in the background"
+        })
+        
+    except Exception as e:
+        logger.error(f"Error starting forecast generation: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/forecasts')
+def list_forecasts():
+    """List available forecast reports"""
+    if not ml_integration:
+        return jsonify({"forecasts": [], "error": "ML integration not available"}), 200
+    
+    try:
+        forecasts = []
+        forecast_types = ['monthly', 'quarterly']
+        
+        for forecast_type in forecast_types:
+            # Get all forecast HTML files
+            pattern = os.path.join(forecasts_dir, f"{forecast_type}_forecast_*.html")
+            html_files = glob.glob(pattern)
+            
+            # Sort by timestamp (newest first)
+            html_files.sort(key=os.path.getmtime, reverse=True)
+            
+            for html_file in html_files:
+                base_name = os.path.basename(html_file)
+                timestamp = base_name.replace(f'{forecast_type}_forecast_', '').replace('.html', '')
+                
+                # Get corresponding MD and PDF files if they exist
+                md_file = html_file.replace('.html', '.md')
+                pdf_file = html_file.replace('.html', '.pdf')
+                
+                # Parse timestamp for display
+                try:
+                    date_obj = datetime.strptime(timestamp, '%Y%m%d_%H%M%S')
+                    formatted_date = date_obj.strftime('%B %d, %Y')
+                    formatted_time = date_obj.strftime('%I:%M %p')
+                except:
+                    formatted_date = "Unknown Date"
+                    formatted_time = "Unknown Time"
+                
+                # Try to extract title and description
+                title = f"{forecast_type.capitalize()} Forecast Report - {formatted_date}"
+                description = f"AI-generated {forecast_type} forecast with economic indicators and market projections."
+                
+                try:
+                    if os.path.exists(md_file):
+                        with open(md_file, 'r', encoding='utf-8') as f:
+                            content = f.read()
+                            # Try to extract a better title and description
+                            lines = content.split('\n')
+                            if lines and lines[0].startswith('# '):
+                                title = lines[0].replace('# ', '')
+                            
+                            # Get a description from the first few paragraphs
+                            for line in lines[1:20]:
+                                if line.strip() and not line.startswith('#') and len(line) > 50:
+                                    description = line.strip()[:200] + "..."
+                                    break
+                except Exception as e:
+                    logger.warning(f"Error extracting forecast details: {str(e)}")
+                
+                # Build forecast info
+                forecast_info = {
+                    "type": forecast_type,
+                    "title": title,
+                    "date": date_obj.isoformat() if 'date_obj' in locals() else "",
+                    "formatted_date": formatted_date,
+                    "formatted_time": formatted_time,
+                    "timestamp": timestamp,
+                    "description": description,
+                    "html_url": f"/forecasts/{os.path.basename(html_file)}",
+                    "md_url": f"/forecasts/{os.path.basename(md_file)}" if os.path.exists(md_file) else None,
+                    "pdf_url": f"/forecasts/{os.path.basename(pdf_file)}" if os.path.exists(pdf_file) else None
+                }
+                
+                forecasts.append(forecast_info)
+        
+        return jsonify({"forecasts": forecasts})
+        
+    except Exception as e:
+        logger.error(f"Error listing forecasts: {str(e)}")
+        return jsonify({"error": str(e), "forecasts": []}), 500
+
+@app.route('/forecasts/<path:filename>')
+def serve_forecast(filename):
+    """Serve forecast files from the forecasts directory"""
+    return send_from_directory(forecasts_dir, filename)
+
+@app.route('/api/ml-data-overview')
+def ml_data_overview():
+    """Get an overview of the data used for ML training"""
+    if not ml_integration:
+        return jsonify({"error": "ML integration not available"}), 503
+    
+    try:
+        # Get data overview from the ML system
+        overview = ml_integration.report_analyzer.get_data_summary()
+        return jsonify(overview)
+    except Exception as e:
+        logger.error(f"Error getting ML data overview: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/visualization/<viz_type>')
+def get_visualization(viz_type):
+    """Generate and return a specific visualization"""
+    if not ml_integration:
+        return jsonify({"error": "ML integration not available"}), 503
+    
+    try:
+        # Get parameters
+        params = request.args.to_dict()
+        metric = params.get('metric', 'gdp_growth')
+        time_period = params.get('period', '6m')
+        
+        # Generate the visualization
+        viz_path = ml_integration.report_analyzer.generate_visualization(
+            viz_type, 
+            metric=metric,
+            time_period=time_period
+        )
+        
+        if not viz_path or not os.path.exists(viz_path):
+            return jsonify({"error": "Failed to generate visualization"}), 500
+            
+        # Return the visualization filename for the client to fetch
+        viz_filename = os.path.basename(viz_path)
+        return jsonify({
+            "visualization_url": f"/forecasts/visualizations/{viz_filename}",
+            "title": f"{viz_type.replace('_', ' ').title()} - {metric.replace('_', ' ').title()}"
+        })
+        
+    except Exception as e:
+        logger.error(f"Error generating visualization: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+# Serve visualization files
+@app.route('/forecasts/visualizations/<path:filename>')
+def serve_visualization(filename):
+    """Serve visualization files"""
+    viz_dir = os.path.join(forecasts_dir, "visualizations")
+    return send_from_directory(viz_dir, filename)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

@@ -3,451 +3,333 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Global Possibilities | Business Intelligence Platform</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <title>Global Possibilities - GCC Business Intelligence</title>
     <style>
-        /* Include CSS inline to ensure it's available */
         :root {
-            --primary-color: #2c3e50;
-            --secondary-color: #3498db;
-            --accent-color: #e74c3c;
-            --light-color: #ecf0f1;
-            --dark-color: #2c3e50;
-            --success-color: #2ecc71;
-            --warning-color: #f39c12;
-            --danger-color: #e74c3c;
+            --primary-color: #1e4d92;
+            --secondary-color: #3a7ca5;
+            --accent-color: #f2a365;
+            --light-bg: #f8f9fa;
+            --dark-bg: #343a40;
+            --text-color: #212529;
+            --light-text: #f8f9fa;
             --border-radius: 6px;
             --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            --transition: all 0.3s ease;
-            --font-main: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
         }
-
-        /* Reset and base styles */
+        
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-
+        
         body {
-            font-family: var(--font-main);
+            background-color: var(--light-bg);
+            color: var(--text-color);
             line-height: 1.6;
-            color: var(--dark-color);
-            background-color: #f8f9fa;
         }
-
-        a {
-            color: var(--secondary-color);
-            text-decoration: none;
-            transition: var(--transition);
-        }
-
-        a:hover {
-            color: var(--primary-color);
-        }
-
-        /* Container */
-        .container {
-            width: 100%;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-
-        /* Header */
+        
         header {
             background-color: var(--primary-color);
             color: white;
             padding: 1rem 0;
-            position: sticky;
-            top: 0;
-            z-index: 1000;
             box-shadow: var(--box-shadow);
         }
-
-        .header-container {
+        
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+        
+        .header-content {
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-
+        
         .logo {
             font-size: 1.5rem;
-            font-weight: 700;
+            font-weight: bold;
             color: white;
+            text-decoration: none;
         }
-
-        .logo span {
-            color: var(--secondary-color);
-        }
-
-        .nav-links {
-            display: flex;
-            gap: 1.5rem;
-        }
-
-        .nav-links a {
-            color: white;
-            font-weight: 500;
-        }
-
-        .nav-links a:hover {
-            color: var(--secondary-color);
-        }
-
-        /* Hero Section */
+        
         .hero {
             padding: 4rem 0;
-            background-color: var(--light-color);
+            background: linear-gradient(rgba(30, 77, 146, 0.9), rgba(30, 77, 146, 0.7)), url('https://images.unsplash.com/photo-1519999482648-25049ddd37b1?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2069&q=80');
+            background-size: cover;
+            background-position: center;
+            color: white;
             text-align: center;
         }
-
+        
         .hero h1 {
             font-size: 2.5rem;
             margin-bottom: 1rem;
-            color: var(--primary-color);
         }
-
+        
         .hero p {
             font-size: 1.2rem;
             max-width: 800px;
             margin: 0 auto 2rem;
-            color: #555;
         }
-
-        /* Buttons */
+        
         .btn {
             display: inline-block;
-            padding: 0.8rem 1.5rem;
+            padding: 0.75rem 1.5rem;
+            background-color: var(--accent-color);
+            color: white;
+            text-decoration: none;
             border-radius: var(--border-radius);
             font-weight: 600;
-            text-align: center;
-            cursor: pointer;
-            transition: var(--transition);
             border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
         }
-
-        .btn-primary {
-            background-color: var(--secondary-color);
-            color: white;
+        
+        .btn:hover {
+            background-color: #e08c50;
+            transform: translateY(-2px);
         }
-
-        .btn-primary:hover {
-            background-color: #2980b9;
-            color: white;
-        }
-
-        .btn-secondary {
-            background-color: var(--light-color);
-            color: var(--dark-color);
-        }
-
-        .btn-secondary:hover {
-            background-color: #bdc3c7;
-        }
-
-        .btn-danger {
-            background-color: var(--danger-color);
-            color: white;
-        }
-
-        .btn-danger:hover {
-            background-color: #c0392b;
-        }
-
-        /* Features Section */
-        .features {
+        
+        .section {
             padding: 4rem 0;
-            background-color: white;
         }
-
+        
         .section-title {
             text-align: center;
             margin-bottom: 3rem;
-            position: relative;
-        }
-
-        .section-title h2 {
             font-size: 2rem;
             color: var(--primary-color);
-            display: inline-block;
-            margin-bottom: 1rem;
         }
-
-        .section-title p {
-            color: #666;
-            max-width: 700px;
-            margin: 0 auto;
-        }
-
-        .features-container {
+        
+        .features {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 2rem;
         }
-
-        .feature-card {
+        
+        .feature {
             background-color: white;
-            border-radius: var(--border-radius);
             padding: 2rem;
+            border-radius: var(--border-radius);
             box-shadow: var(--box-shadow);
-            transition: var(--transition);
+            text-align: center;
         }
-
-        .feature-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-        }
-
+        
         .feature-icon {
             font-size: 2.5rem;
-            color: var(--secondary-color);
             margin-bottom: 1rem;
+            color: var(--secondary-color);
         }
-
-        .feature-card h3 {
-            font-size: 1.2rem;
+        
+        .feature h3 {
             margin-bottom: 1rem;
             color: var(--primary-color);
         }
-
-        /* Reports Section */
+        
         .reports {
-            padding: 4rem 0;
-            background-color: #f8f9fa;
-        }
-
-        .reports-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 2rem;
-        }
-
-        .report-card {
             background-color: white;
+            padding: 2rem;
             border-radius: var(--border-radius);
-            overflow: hidden;
             box-shadow: var(--box-shadow);
-            transition: var(--transition);
         }
-
-        .report-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        
+        .report-list {
+            list-style: none;
         }
-
-        .report-content {
-            padding: 1.5rem;
+        
+        .report-item {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid #eee;
         }
-
-        .report-date {
-            display: inline-block;
-            padding: 0.3rem 0.8rem;
-            background-color: var(--light-color);
-            border-radius: 50px;
-            font-size: 0.8rem;
-            margin-bottom: 1rem;
-            color: var(--dark-color);
+        
+        .report-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
         }
-
+        
         .report-title {
             font-size: 1.2rem;
-            margin-bottom: 1rem;
+            margin-bottom: 0.5rem;
             color: var(--primary-color);
         }
-
-        .report-description {
-            color: #666;
-            margin-bottom: 1.5rem;
+        
+        .report-meta {
             font-size: 0.9rem;
-            display: -webkit-box;
-            -webkit-line-clamp: 3;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
+            color: #6c757d;
+            margin-bottom: 0.5rem;
         }
-
+        
+        .report-description {
+            margin-bottom: 1rem;
+        }
+        
         .report-links {
             display: flex;
             gap: 1rem;
         }
-
+        
         .report-link {
-            display: inline-block;
-            padding: 0.5rem 1rem;
-            border-radius: var(--border-radius);
-            font-size: 0.8rem;
-            font-weight: 600;
-            text-align: center;
-            transition: var(--transition);
+            font-size: 0.9rem;
+            color: var(--secondary-color);
+            text-decoration: none;
         }
-
-        .link-html {
-            background-color: var(--secondary-color);
-            color: white;
+        
+        .report-link:hover {
+            text-decoration: underline;
         }
-
-        .link-html:hover {
-            background-color: #2980b9;
-            color: white;
+        
+        footer {
+            background-color: var(--dark-bg);
+            color: var(--light-text);
+            padding: 3rem 0;
         }
-
-        .link-pdf {
-            background-color: var(--danger-color);
-            color: white;
-        }
-
-        .link-pdf:hover {
-            background-color: #c0392b;
-            color: white;
-        }
-
-        .link-md {
-            background-color: var(--light-color);
-            color: var(--dark-color);
-        }
-
-        .link-md:hover {
-            background-color: #bdc3c7;
-        }
-
-        /* Modal */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 2000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0, 0, 0, 0.5);
-        }
-
-        .modal-content {
-            position: relative;
-            background-color: white;
-            margin: 10% auto;
-            padding: 2rem;
-            border-radius: var(--border-radius);
-            width: 90%;
-            max-width: 600px;
-            box-shadow: var(--box-shadow);
-            animation: modalopen 0.3s;
-        }
-
-        @keyframes modalopen {
-            from { opacity: 0; transform: translateY(-50px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .close-modal {
-            position: absolute;
-            top: 1rem;
-            right: 1rem;
-            font-size: 1.5rem;
-            cursor: pointer;
-        }
-
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-        }
-
-        .form-control {
-            width: 100%;
-            padding: 0.8rem;
-            border: 1px solid #ddd;
-            border-radius: var(--border-radius);
-            font-family: inherit;
-            font-size: 1rem;
-        }
-
-        .form-check {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .form-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 1rem;
-            margin-top: 2rem;
-        }
-
-        /* Loading */
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 2rem;
-        }
-
-        .spinner {
-            border: 4px solid rgba(0, 0, 0, 0.1);
-            border-radius: 50%;
-            border-top: 4px solid var(--secondary-color);
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 1rem;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* Footer */
-        .footer {
-            background-color: var(--primary-color);
-            color: white;
-            padding: 3rem 0 2rem;
-        }
-
-        .footer-container {
+        
+        .footer-content {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 2rem;
         }
-
+        
         .footer-section h3 {
-            font-size: 1.2rem;
             margin-bottom: 1.5rem;
-            color: var(--light-color);
+            color: var(--accent-color);
         }
-
+        
         .footer-links {
             list-style: none;
         }
-
+        
         .footer-links li {
-            margin-bottom: 0.8rem;
+            margin-bottom: 0.5rem;
         }
-
+        
         .footer-links a {
-            color: #bdc3c7;
+            color: var(--light-text);
+            text-decoration: none;
         }
-
+        
         .footer-links a:hover {
-            color: white;
+            color: var(--accent-color);
         }
-
+        
         .copyright {
             text-align: center;
-            margin-top: 3rem;
-            padding-top: 1.5rem;
+            margin-top: 2rem;
+            padding-top: 2rem;
             border-top: 1px solid rgba(255, 255, 255, 0.1);
-            color: #bdc3c7;
-            font-size: 0.9rem;
         }
-
-        /* Responsive */
+        
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            overflow: auto;
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 10% auto;
+            padding: 2rem;
+            width: 90%;
+            max-width: 600px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            position: relative;
+        }
+        
+        .close {
+            position: absolute;
+            top: 1rem;
+            right: 1.5rem;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        
+        .close:hover {
+            color: var(--accent-color);
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ced4da;
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+        }
+        
+        .form-check {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .form-check-input {
+            margin-right: 0.5rem;
+        }
+        
+        /* Loading spinner */
+        .spinner-border {
+            display: inline-block;
+            width: 2rem;
+            height: 2rem;
+            vertical-align: text-bottom;
+            border: 0.25em solid currentColor;
+            border-right-color: transparent;
+            border-radius: 50%;
+            animation: spinner-border .75s linear infinite;
+        }
+        
+        @keyframes spinner-border {
+            to { transform: rotate(360deg); }
+        }
+        
+        .loading-container {
+            display: none;
+            text-align: center;
+            margin-top: 2rem;
+        }
+        
+        .alert {
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: var(--border-radius);
+        }
+        
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-danger {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
         @media (max-width: 768px) {
             .hero h1 {
                 font-size: 2rem;
@@ -457,500 +339,284 @@
                 font-size: 1rem;
             }
             
-            .section-title h2 {
+            .section-title {
                 font-size: 1.5rem;
             }
-        }
-
-        /* Toast Notifications */
-        .toast {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 1rem 1.5rem;
-            background-color: white;
-            color: var(--dark-color);
-            border-radius: var(--border-radius);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            z-index: 9999;
-            display: flex;
-            align-items: center;
-            min-width: 300px;
-            max-width: 450px;
-            transform: translateX(120%);
-            transition: transform 0.3s ease;
-        }
-
-        .toast.show {
-            transform: translateX(0);
-        }
-
-        .toast-success {
-            border-left: 4px solid var(--success-color);
-        }
-
-        .toast-error {
-            border-left: 4px solid var(--danger-color);
-        }
-
-        .toast-icon {
-            margin-right: 1rem;
-            font-size: 1.5rem;
-        }
-
-        .toast-success .toast-icon {
-            color: var(--success-color);
-        }
-
-        .toast-error .toast-icon {
-            color: var(--danger-color);
-        }
-
-        .toast-content {
-            flex: 1;
-        }
-
-        .toast-title {
-            font-weight: 600;
-            margin-bottom: 0.3rem;
-        }
-
-        .toast-close {
-            margin-left: 1rem;
-            cursor: pointer;
-            font-size: 1.2rem;
-            opacity: 0.7;
-            transition: opacity 0.3s ease;
-        }
-
-        .toast-close:hover {
-            opacity: 1;
-        }
-
-        /* Text Center */
-        .text-center {
-            text-align: center;
+            
+            .modal-content {
+                margin: 20% auto;
+                width: 95%;
+            }
         }
     </style>
 </head>
 <body>
     <!-- Header -->
     <header>
-        <div class="container header-container">
-            <a href="/" class="logo">Global <span>Possibilities</span></a>
-            <nav class="nav-links">
-                <a href="#features">Features</a>
-                <a href="#reports">Reports</a>
-                <a href="#" id="generate-report-btn">Generate Report</a>
-            </nav>
+        <div class="container">
+            <div class="header-content">
+                <a href="/" class="logo">Global Possibilities</a>
+            </div>
         </div>
     </header>
-
+    
     <!-- Hero Section -->
     <section class="hero">
         <div class="container">
-            <h1>Business Intelligence for GCC & UAE Markets</h1>
-            <p>Access daily market insights, economic trends, and business news analysis tailored for decision-makers in the Gulf region.</p>
-            <button class="btn btn-primary" id="generate-report-btn-hero">Generate New Report</button>
+            <h1>GCC Business Intelligence Platform</h1>
+            <p>Stay ahead of market trends with our AI-powered business intelligence reports focusing on the UAE and GCC region.</p>
+            <button class="btn" id="generateReportBtn">Generate New Report</button>
         </div>
     </section>
-
+    
     <!-- Features Section -->
-    <section class="features" id="features">
+    <section class="section">
         <div class="container">
-            <div class="section-title">
-                <h2>Platform Features</h2>
-                <p>Comprehensive tools to keep you informed about business developments in the GCC region</p>
-            </div>
-            <div class="features-container">
-                <div class="feature-card">
-                    <div class="feature-icon"><i class="fas fa-chart-line"></i></div>
-                    <h3>Daily Market Analysis</h3>
-                    <p>Stay updated with daily intelligence reports on GCC and UAE markets, providing actionable insights for your business decisions.</p>
+            <h2 class="section-title">Platform Features</h2>
+            <div class="features">
+                <div class="feature">
+                    <div class="feature-icon">📊</div>
+                    <h3>Daily Intelligence</h3>
+                    <p>Comprehensive daily reports on GCC and UAE business trends, economic indicators, and market movements.</p>
                 </div>
-                <div class="feature-card">
-                    <div class="feature-icon"><i class="fas fa-newspaper"></i></div>
-                    <h3>News Intelligence</h3>
-                    <p>AI-powered analysis of the latest business news, summarized and contextualized to highlight relevant trends and developments.</p>
+                <div class="feature">
+                    <div class="feature-icon">🔍</div>
+                    <h3>AI Analysis</h3>
+                    <p>Advanced NLP and machine learning to analyze news articles and extract meaningful business insights.</p>
                 </div>
-                <div class="feature-card">
-                    <div class="feature-icon"><i class="fas fa-file-pdf"></i></div>
-                    <h3>Multiple Formats</h3>
-                    <p>Access your intelligence reports in HTML, PDF, or Markdown formats, designed for easy sharing and integration with your workflow.</p>
+                <div class="feature">
+                    <div class="feature-icon">💬</div>
+                    <h3>Interactive Chatbot</h3>
+                    <p>Ask questions about report data and receive intelligent responses from our embedded AI assistant.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">📱</div>
+                    <h3>Multi-Format</h3>
+                    <p>Access reports in HTML, PDF, and Markdown formats to suit your preferences and needs.</p>
                 </div>
             </div>
         </div>
     </section>
-
-    <!-- Reports Section -->
-    <section class="reports" id="reports">
+    
+    <!-- Recent Reports Section -->
+    <section class="section" style="background-color: #f8f9fa;">
         <div class="container">
-            <div class="section-title">
-                <h2>Recent Reports</h2>
-                <p>View and access your latest business intelligence reports</p>
-            </div>
-            <div id="reports-container" class="reports-container">
-                <!-- Reports will be loaded dynamically -->
-                <div class="spinner"></div>
-                <p class="text-center">Loading reports...</p>
+            <h2 class="section-title">Recent Reports</h2>
+            <div class="reports">
+                <div id="reportsLoading" class="loading-container">
+                    <div class="spinner-border"></div>
+                    <p>Loading reports...</p>
+                </div>
+                <div id="reportsAlert" class="alert alert-danger" style="display: none;"></div>
+                <ul class="report-list" id="reportsList">
+                    <!-- Reports will be loaded here via JavaScript -->
+                </ul>
             </div>
         </div>
     </section>
-
-    <!-- Loading Indicator -->
-    <div id="loading" class="loading">
-        <div class="spinner"></div>
-        <p>Generating report... This may take a few minutes.</p>
-    </div>
-
+    
     <!-- Report Generation Modal -->
-    <div id="report-modal" class="modal">
+    <div id="reportModal" class="modal">
         <div class="modal-content">
-            <span class="close-modal">&times;</span>
-            <h2>Generate New Report</h2>
-            <p>Create a new business intelligence report with the following settings:</p>
-            <form id="report-form">
+            <span class="close">&times;</span>
+            <h2 style="margin-bottom: 1.5rem; color: var(--primary-color);">Generate New Report</h2>
+            <div id="generateAlert" class="alert" style="display: none;"></div>
+            
+            <form id="generateReportForm">
                 <div class="form-group">
-                    <label for="report-type">Report Type</label>
-                    <select id="report-type" class="form-control">
-                        <option value="daily">Daily Report</option>
-                        <option value="weekly">Weekly Report</option>
+                    <label class="form-label" for="reportType">Report Type</label>
+                    <select class="form-control" id="reportType" name="reportType">
+                        <option value="daily">Daily Business Intelligence</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <div class="form-check">
-                        <input type="checkbox" id="collect-news" checked>
-                        <label for="collect-news">Collect fresh news data</label>
-                    </div>
-                    <small>Uncheck this if you want to use existing data without collecting new information.</small>
+                
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="collectNews" name="collectNews" checked>
+                    <label class="form-check-label" for="collectNews">
+                        Collect fresh news data (uncheck to use existing data)
+                    </label>
                 </div>
-                <div class="form-actions">
-                    <button type="button" class="btn btn-secondary close-modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Generate Report</button>
+                
+                <div class="form-group">
+                    <button type="submit" class="btn" style="width: 100%;">Generate Report</button>
+                </div>
+                
+                <div id="generatingLoading" class="loading-container">
+                    <div class="spinner-border"></div>
+                    <p>Generating report... This may take a few minutes.</p>
                 </div>
             </form>
         </div>
     </div>
-
+    
     <!-- Footer -->
-    <footer class="footer">
-        <div class="container footer-container">
-            <div class="footer-section">
-                <h3>Quick Links</h3>
-                <ul class="footer-links">
-                    <li><a href="#features">Features</a></li>
-                    <li><a href="#reports">Reports</a></li>
-                    <li><a href="#">Generate Report</a></li>
-                </ul>
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>Global Possibilities</h3>
+                    <p>AI-powered business intelligence for the GCC region, delivering actionable insights for informed decision-making.</p>
+                </div>
+                
+                <div class="footer-section">
+                    <h3>Quick Links</h3>
+                    <ul class="footer-links">
+                        <li><a href="/">Home</a></li>
+                        <li><a href="#" id="footerGenerateBtn">Generate Report</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-section">
+                    <h3>Resources</h3>
+                    <ul class="footer-links">
+                        <li><a href="#">Documentation</a></li>
+                        <li><a href="#">API Reference</a></li>
+                    </ul>
+                </div>
             </div>
-            <div class="footer-section">
-                <h3>Resources</h3>
-                <ul class="footer-links">
-                    <li><a href="#">Documentation</a></li>
-                    <li><a href="#">API Access</a></li>
-                    <li><a href="#">Support</a></li>
-                </ul>
+            
+            <div class="copyright">
+                <p>&copy; 2024 Global Possibilities. All rights reserved.</p>
             </div>
-            <div class="footer-section">
-                <h3>Company</h3>
-                <ul class="footer-links">
-                    <li><a href="#">About Us</a></li>
-                    <li><a href="#">Contact</a></li>
-                    <li><a href="#">Privacy Policy</a></li>
-                </ul>
-            </div>
-        </div>
-        <div class="copyright">
-            <p>&copy; 2025 Global Possibilities. All rights reserved.</p>
         </div>
     </footer>
-
+    
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Elements
-            const reportsContainer = document.getElementById('reports-container');
-            const generateReportBtn = document.getElementById('generate-report-btn');
-            const generateReportBtnHero = document.getElementById('generate-report-btn-hero');
-            const reportModal = document.getElementById('report-modal');
-            const closeModalBtn = document.querySelector('.close-modal');
-            const reportForm = document.getElementById('report-form');
-            const loadingSpinner = document.getElementById('loading');
-            
-            // Load reports on page load
-            loadReports();
-            
-            // Event Listeners
-            if (generateReportBtn) {
-                generateReportBtn.addEventListener('click', openReportModal);
+        // DOM Elements
+        const generateReportBtn = document.getElementById('generateReportBtn');
+        const footerGenerateBtn = document.getElementById('footerGenerateBtn');
+        const reportModal = document.getElementById('reportModal');
+        const closeBtn = document.querySelector('.close');
+        const generateReportForm = document.getElementById('generateReportForm');
+        const reportsList = document.getElementById('reportsList');
+        const reportsLoading = document.getElementById('reportsLoading');
+        const reportsAlert = document.getElementById('reportsAlert');
+        const generateAlert = document.getElementById('generateAlert');
+        const generatingLoading = document.getElementById('generatingLoading');
+        
+        // Modal Controls
+        function openModal() {
+            reportModal.style.display = 'block';
+        }
+        
+        function closeModal() {
+            reportModal.style.display = 'none';
+        }
+        
+        // Event Listeners
+        generateReportBtn.addEventListener('click', openModal);
+        footerGenerateBtn.addEventListener('click', openModal);
+        closeBtn.addEventListener('click', closeModal);
+        
+        window.addEventListener('click', (event) => {
+            if (event.target === reportModal) {
+                closeModal();
             }
-            
-            if (generateReportBtnHero) {
-                generateReportBtnHero.addEventListener('click', openReportModal);
-            }
-            
-            if (closeModalBtn) {
-                closeModalBtn.addEventListener('click', closeReportModal);
-            }
-            
-            if (reportForm) {
-                reportForm.addEventListener('submit', handleReportGeneration);
-            }
-            
-            // Window click to close modal
-            window.addEventListener('click', function(e) {
-                if (e.target === reportModal) {
-                    closeReportModal();
+        });
+        
+        // Load Reports
+        async function loadReports() {
+            try {
+                reportsLoading.style.display = 'block';
+                reportsAlert.style.display = 'none';
+                reportsList.innerHTML = '';
+                
+                const response = await fetch('/api/reports');
+                const data = await response.json();
+                
+                reportsLoading.style.display = 'none';
+                
+                if (data.error) {
+                    reportsAlert.textContent = `Error: ${data.error}`;
+                    reportsAlert.style.display = 'block';
+                    return;
                 }
-            });
-
-            /**
-             * Load reports from the API
-             */
-            function loadReports() {
-                // Show loading spinner
-                if (reportsContainer) {
-                    reportsContainer.innerHTML = '<div class="spinner"></div><p class="text-center">Loading reports...</p>';
+                
+                if (!data.reports || data.reports.length === 0) {
+                    reportsList.innerHTML = '<p>No reports available. Generate your first report!</p>';
+                    return;
                 }
                 
-                fetch('/api/reports')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (reportsContainer) {
-                            if (data.reports && data.reports.length > 0) {
-                                displayReports(data.reports);
-                            } else {
-                                reportsContainer.innerHTML = '<p class="text-center">No reports found. Generate your first report!</p>';
-                            }
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error loading reports:', error);
-                        if (reportsContainer) {
-                            reportsContainer.innerHTML = '<p class="text-center">Error loading reports. Please try again later.</p>';
-                        }
-                        showToast('Error', 'Failed to load reports. Please try again later.', 'error');
-                    });
-            }
-            
-            /**
-             * Display reports in the container
-             * @param {Array} reports - The reports to display
-             */
-            function displayReports(reports) {
-                if (!reportsContainer) return;
-                
-                reportsContainer.innerHTML = '';
-                
-                reports.forEach(report => {
-                    const reportDate = new Date(report.date);
-                    const formattedDate = reportDate instanceof Date && !isNaN(reportDate) 
-                        ? reportDate.toLocaleDateString('en-US', { 
-                            year: 'numeric', 
-                            month: 'long', 
-                            day: 'numeric' 
-                          }) 
-                        : 'Unknown Date';
+                data.reports.forEach(report => {
+                    const reportItem = document.createElement('li');
+                    reportItem.className = 'report-item';
                     
-                    const reportCard = document.createElement('div');
-                    reportCard.className = 'report-card';
-                    reportCard.innerHTML = `
-                        <div class="report-content">
-                            <span class="report-date">${formattedDate}</span>
-                            <h3 class="report-title">${report.title}</h3>
-                            <p class="report-description">${report.description}</p>
-                            <div class="report-links">
-                                <a href="${report.html_url}" target="_blank" class="report-link link-html">HTML</a>
-                                <a href="${report.pdf_url}" target="_blank" class="report-link link-pdf">PDF</a>
-                                <a href="${report.md_url}" target="_blank" class="report-link link-md">MD</a>
-                            </div>
+                    reportItem.innerHTML = `
+                        <h3 class="report-title">${report.title}</h3>
+                        <div class="report-meta">Generated on ${report.formatted_date} at ${report.formatted_time}</div>
+                        <p class="report-description">${report.description}</p>
+                        <div class="report-links">
+                            <a href="${report.html_url}" class="report-link" target="_blank">View HTML</a>
+                            <a href="${report.pdf_url}" class="report-link" target="_blank">Download PDF</a>
+                            <a href="${report.md_url}" class="report-link" target="_blank">View Markdown</a>
                         </div>
                     `;
                     
-                    reportsContainer.appendChild(reportCard);
+                    reportsList.appendChild(reportItem);
                 });
+            } catch (error) {
+                reportsLoading.style.display = 'none';
+                reportsAlert.textContent = `Failed to load reports: ${error.message}`;
+                reportsAlert.style.display = 'block';
             }
+        }
+        
+        // Generate Report
+        generateReportForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
             
-            /**
-             * Open the report generation modal
-             */
-            function openReportModal() {
-                if (reportModal) {
-                    reportModal.style.display = 'block';
-                }
-            }
+            const reportType = document.getElementById('reportType').value;
+            const collectNews = document.getElementById('collectNews').checked;
             
-            /**
-             * Close the report generation modal
-             */
-            function closeReportModal() {
-                if (reportModal) {
-                    reportModal.style.display = 'none';
-                }
-            }
-            
-            /**
-             * Handle report generation form submission
-             * @param {Event} e - The submit event
-             */
-            function handleReportGeneration(e) {
-                e.preventDefault();
+            try {
+                // Reset alerts and show loading
+                generateAlert.style.display = 'none';
+                generatingLoading.style.display = 'block';
                 
-                const reportType = document.getElementById('report-type').value;
-                const collectNews = document.getElementById('collect-news').checked;
-                
-                // Close the modal
-                closeReportModal();
-                
-                // Show loading spinner
-                if (loadingSpinner) {
-                    loadingSpinner.style.display = 'block';
-                }
-                
-                // Show toast notification
-                showToast('Report Generation Started', 'This process may take a few minutes. The page will update when complete.', 'success');
-                
-                // Call the API to generate the report
-                fetch('/api/generate-report', {
+                const response = await fetch('/api/generate-report', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
                         report_type: reportType,
                         collect_news: collectNews
-                    }),
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Setup polling to check for new reports
-                        startPollingForNewReports();
-                    } else {
-                        // Hide loading spinner
-                        if (loadingSpinner) {
-                            loadingSpinner.style.display = 'none';
-                        }
-                        showToast('Error', data.message || 'Failed to generate report', 'error');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error generating report:', error);
-                    // Hide loading spinner
-                    if (loadingSpinner) {
-                        loadingSpinner.style.display = 'none';
-                    }
-                    showToast('Error', 'Failed to generate report. Please try again later.', 'error');
+                    })
                 });
-            }
-            
-            /**
-             * Poll for new reports after generation is started
-             */
-            function startPollingForNewReports() {
-                let attemptCount = 0;
-                const maxAttempts = 60; // 5 minutes (5 * 60 seconds / 5 second interval)
-                const pollInterval = 5000; // 5 seconds
                 
-                const pollTimer = setInterval(() => {
-                    attemptCount++;
-                    
-                    // Check for new reports
-                    fetch('/api/reports')
-                        .then(response => response.json())
-                        .then(data => {
-                            // If we have reports or reached max attempts
-                            if ((data.reports && data.reports.length > 0) || attemptCount >= maxAttempts) {
-                                // Clear interval
-                                clearInterval(pollTimer);
-                                
-                                // Hide loading spinner
-                                if (loadingSpinner) {
-                                    loadingSpinner.style.display = 'none';
-                                }
-                                
-                                // Update reports display
-                                if (data.reports && data.reports.length > 0) {
-                                    displayReports(data.reports);
-                                    showToast('Success', 'Report generation completed!', 'success');
-                                } else if (attemptCount >= maxAttempts) {
-                                    showToast('Timeout', 'Report generation is taking longer than expected. It will appear when complete.', 'error');
-                                }
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error polling for reports:', error);
-                            attemptCount = maxAttempts; // Stop polling on error
-                            
-                            // Hide loading spinner
-                            if (loadingSpinner) {
-                                loadingSpinner.style.display = 'none';
-                            }
-                            
-                            showToast('Error', 'Failed to check for new reports. The report may still be generating.', 'error');
-                        });
-                    
-                    // Stop after max attempts
-                    if (attemptCount >= maxAttempts) {
-                        clearInterval(pollTimer);
-                        
-                        // Hide loading spinner
-                        if (loadingSpinner) {
-                            loadingSpinner.style.display = 'none';
-                        }
-                    }
-                }, pollInterval);
-            }
-            
-            /**
-             * Show a toast notification
-             * @param {string} title - The notification title
-             * @param {string} message - The notification message
-             * @param {string} type - The notification type ('success' or 'error')
-             */
-            function showToast(title, message, type = 'success') {
-                // Create toast element
-                const toast = document.createElement('div');
-                toast.className = `toast toast-${type}`;
-                toast.innerHTML = `
-                    <div class="toast-icon">
-                        ${type === 'success' ? '✓' : '✕'}
-                    </div>
-                    <div class="toast-content">
-                        <div class="toast-title">${title}</div>
-                        <div class="toast-message">${message}</div>
-                    </div>
-                    <div class="toast-close">&times;</div>
-                `;
+                const data = await response.json();
                 
-                // Add to document
-                document.body.appendChild(toast);
+                generatingLoading.style.display = 'none';
                 
-                // Show the toast
-                setTimeout(() => {
-                    toast.classList.add('show');
-                }, 10);
-                
-                // Set up close button
-                const closeBtn = toast.querySelector('.toast-close');
-                if (closeBtn) {
-                    closeBtn.addEventListener('click', () => {
-                        toast.classList.remove('show');
-                        setTimeout(() => {
-                            document.body.removeChild(toast);
-                        }, 300);
-                    });
+                if (!data.success) {
+                    generateAlert.textContent = data.message || 'Failed to generate report';
+                    generateAlert.className = 'alert alert-danger';
+                    generateAlert.style.display = 'block';
+                    return;
                 }
                 
-                // Auto hide after 5 seconds
+                // Show success message
+                generateAlert.textContent = data.message;
+                generateAlert.className = 'alert alert-success';
+                generateAlert.style.display = 'block';
+                
+                // Reload reports after a delay
                 setTimeout(() => {
-                    toast.classList.remove('show');
-                    setTimeout(() => {
-                        if (document.body.contains(toast)) {
-                            document.body.removeChild(toast);
-                        }
-                    }, 300);
-                }, 5000);
+                    loadReports();
+                    closeModal();
+                }, 3000);
+                
+            } catch (error) {
+                generatingLoading.style.display = 'none';
+                generateAlert.textContent = `Error: ${error.message}`;
+                generateAlert.className = 'alert alert-danger';
+                generateAlert.style.display = 'block';
             }
+        });
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadReports();
         });
     </script>
 </body>

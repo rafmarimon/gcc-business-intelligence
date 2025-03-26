@@ -348,6 +348,30 @@
                 width: 95%;
             }
         }
+        
+        .report-filters {
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .filter-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 8px;
+        }
+        
+        .filter-controls .form-control {
+            flex: 1;
+        }
+        
+        .filter-controls .btn {
+            padding: 0.4rem 0.8rem;
+        }
+        
+        .report-client, .report-type {
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -424,9 +448,21 @@
             
             <form id="generateReportForm">
                 <div class="form-group">
+                    <label class="form-label" for="clientSelect">Client</label>
+                    <select class="form-control" id="clientSelect" name="client">
+                        <option value="general">Global Possibilities Team (Internal)</option>
+                        <option value="google">Google</option>
+                        <option value="nestle">Nestle</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
                     <label class="form-label" for="reportType">Report Type</label>
                     <select class="form-control" id="reportType" name="reportType">
-                        <option value="daily">Daily Business Intelligence</option>
+                        <option value="daily">Daily Report</option>
+                        <option value="weekly">Weekly Report</option>
+                        <option value="monthly">Monthly Report</option>
+                        <option value="quarterly">Quarterly Report</option>
                     </select>
                 </div>
                 
@@ -514,14 +550,14 @@
             }
         });
         
-        // Load Reports
-        async function loadReports() {
+        // Load Reports with optional client and frequency filters
+        async function loadReports(client = 'general', frequency = 'daily') {
             try {
                 reportsLoading.style.display = 'block';
                 reportsAlert.style.display = 'none';
                 reportsList.innerHTML = '';
                 
-                const response = await fetch('/api/reports');
+                const response = await fetch(`/api/reports?client=${client}&frequency=${frequency}`);
                 const data = await response.json();
                 
                 reportsLoading.style.display = 'none';
@@ -533,9 +569,42 @@
                 }
                 
                 if (!data.reports || data.reports.length === 0) {
-                    reportsList.innerHTML = '<p>No reports available. Generate your first report!</p>';
+                    reportsList.innerHTML = `<p>No reports available for ${client} (${frequency}). Generate your first report!</p>`;
                     return;
                 }
+                
+                // Add filter selector
+                const filterDiv = document.createElement('div');
+                filterDiv.className = 'report-filters';
+                filterDiv.innerHTML = `
+                    <div class="form-group">
+                        <label class="form-label">Filter Reports:</label>
+                        <div class="filter-controls">
+                            <select id="clientFilter" class="form-control">
+                                <option value="general" ${client === 'general' ? 'selected' : ''}>Global Possibilities Team</option>
+                                <option value="google" ${client === 'google' ? 'selected' : ''}>Google</option>
+                                <option value="nestle" ${client === 'nestle' ? 'selected' : ''}>Nestle</option>
+                            </select>
+                            <select id="frequencyFilter" class="form-control">
+                                <option value="daily" ${frequency === 'daily' ? 'selected' : ''}>Daily</option>
+                                <option value="weekly" ${frequency === 'weekly' ? 'selected' : ''}>Weekly</option>
+                                <option value="monthly" ${frequency === 'monthly' ? 'selected' : ''}>Monthly</option>
+                                <option value="quarterly" ${frequency === 'quarterly' ? 'selected' : ''}>Quarterly</option>
+                            </select>
+                            <button id="applyFilters" class="btn btn-sm">Apply</button>
+                        </div>
+                    </div>
+                `;
+                reportsList.appendChild(filterDiv);
+                
+                // Add event listener to filter button
+                setTimeout(() => {
+                    document.getElementById('applyFilters').addEventListener('click', () => {
+                        const clientFilter = document.getElementById('clientFilter').value;
+                        const frequencyFilter = document.getElementById('frequencyFilter').value;
+                        loadReports(clientFilter, frequencyFilter);
+                    });
+                }, 0);
                 
                 data.reports.forEach(report => {
                     const reportItem = document.createElement('li');
@@ -543,7 +612,11 @@
                     
                     reportItem.innerHTML = `
                         <h3 class="report-title">${report.title}</h3>
-                        <div class="report-meta">Generated on ${report.formatted_date} at ${report.formatted_time}</div>
+                        <div class="report-meta">
+                            <span class="report-client">Client: ${report.client}</span> | 
+                            <span class="report-type">${report.frequency.charAt(0).toUpperCase() + report.frequency.slice(1)}</span> | 
+                            <span class="report-date">Generated on ${report.formatted_date} at ${report.formatted_time}</span>
+                        </div>
                         <p class="report-description">${report.description}</p>
                         <div class="report-links">
                             <a href="${report.html_url}" class="report-link" target="_blank">View HTML</a>
@@ -565,6 +638,7 @@
         generateReportForm.addEventListener('submit', async (event) => {
             event.preventDefault();
             
+            const client = document.getElementById('clientSelect').value;
             const reportType = document.getElementById('reportType').value;
             const collectNews = document.getElementById('collectNews').checked;
             
@@ -579,6 +653,7 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
+                        client: client,
                         report_type: reportType,
                         collect_news: collectNews
                     })
@@ -602,7 +677,7 @@
                 
                 // Reload reports after a delay
                 setTimeout(() => {
-                    loadReports();
+                    loadReports(client, reportType);
                     closeModal();
                 }, 3000);
                 
@@ -616,7 +691,13 @@
         
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
-            loadReports();
+            // Add our custom styles
+            const styleElement = document.createElement('style');
+            styleElement.textContent = addStyles;
+            document.head.appendChild(styleElement);
+            
+            // Initialize with default values
+            loadReports('general', 'daily');
         });
     </script>
 </body>

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business Intelligence Report: March 25, 2025</title>
+    <link rel="stylesheet" href="assets/report.css">
+</head>
+<body>
+    <div class="report-container">
+        <div class="report-header">
+            <div class="header-content">
+                
+                <div class="header-text">
+                    <h1>Business Intelligence Report</h1>
+                    <div class="date-badge">March 25, 2025</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="report-body">
+            <h1>Business Intelligence Report: March 25, 2025</h1>
+<p><strong>Generated:</strong> March 25, 2025 at 08:57 PM | <strong>Report ID:</strong> 20250325_205714</p>
+<h2>Table of Contents</h2>
+<ol>
+<li><a href="#business-intelligence-report">Business Intelligence Report</a></li>
+<li><a href="#linkedin-posts">LinkedIn Posts</a></li>
+</ol>
+<hr/>
+<h2>Business Intelligence Report</h2>
+<h1>UAE Business Intelligence Report</h1>
+<h2>Economic Insights</h2>
+<p>The UAE economy continues to show resilience despite global challenges. Key sectors such as real estate, tourism, and technology are experiencing growth.</p>
+<h3>Key Economic Indicators</h3>
+<ul>
+<li>GDP Growth: 3.8%</li>
+<li>Inflation: 2.1%</li>
+<li>Foreign Direct Investment: Increased by 14% year-over-year</li>
+</ul>
+<h2>Industry Developments</h2>
+<h3>Technology</h3>
+<p>The UAE is rapidly becoming a technology hub in the Middle East, with Dubai's Internet City attracting major global players. Recent government initiatives support AI development and blockchain implementation.</p>
+<h3>Real Estate</h3>
+<p>Property transactions in Dubai increased by 12% in the last quarter, showing strong market activity despite global economic concerns.</p>
+<h3>Energy</h3>
+<p>The UAE continues to diversify its energy portfolio, with significant investments in renewable energy projects, particularly solar power.</p>
+<h2>US-UAE Relations</h2>
+<p>Bilateral trade between the US and UAE reached $24.5 billion in the past year, with significant growth in sectors such as defense, technology, and healthcare.</p>
+<p>Key partnerships announced this week:<br/>
+1. A major US healthcare provider expanding operations in Abu Dhabi<br/>
+2. Technology transfer agreement in AI research<br/>
+3. Joint venture in sustainable agriculture technologies</p>
+<h2>Regulatory Updates</h2>
+<p>The UAE government announced new regulations to streamline business licensing processes, reducing processing time by 40% for new business applications.</p>
+<h2>Market Opportunities</h2>
+<p>Emerging opportunities exist in:<br/>
+- Green technologies and sustainability solutions<br/>
+- Healthcare technology and telemedicine<br/>
+- Financial technology, particularly in payment solutions<br/>
+- E-commerce platforms targeting the GCC region</p>
+<h2>LinkedIn Posts</h2>
+<p>The following LinkedIn posts have been generated based on the business intelligence report:</p>
+<h3>Post 1: UAE Economic Resilience</h3>
+<p><strong>Category:</strong> Economy</p>
+<pre><code>📈 **UAE Economy Shows Remarkable Resilience**
+
+Despite global economic headwinds, the UAE economy continues to demonstrate impressive resilience with 3.8% GDP growth and controlled inflation at 2.1%.
+
+Key sectors driving this growth include real estate, tourism, and technology, with property transactions in Dubai alone increasing by 12% in the last quarter.
+
+Foreign direct investment has surged by 14% year-over-year, reflecting strong international confidence in the UAE's economic future.
+
+What factors do you think contribute most to the UAE's economic stability in these uncertain times?
+
+#UAEEconomy #EconomicGrowth #BusinessIntelligence #InvestmentOpportunities #GlobalBusiness
+</code></pre>
+<h3>Post 2: US-UAE Partnership Growth</h3>
+<p><strong>Category:</strong> Us Uae Relations</p>
+<pre><code>🇺🇸🇦🇪 **US-UAE Business Relations Reach New Heights**
+
+Bilateral trade between the US and UAE has now reached $24.5 billion, with significant growth across defense, technology, and healthcare sectors.
+
+This week saw major partnership announcements including US healthcare expansion in Abu Dhabi, technology transfer in AI research, and innovative joint ventures in sustainable agriculture.
+
+These partnerships demonstrate the deepening economic ties between our nations and create substantial opportunities for businesses on both sides.
+
+How might your organization benefit from the growing US-UAE business ecosystem?
+
+#USUAERelations #InternationalTrade #BusinessPartnerships #GlobalOpportunities #MiddleEastBusiness
+</code></pre>
+<hr/>
+<div class="chatbot-container">
+<div class="chatbot-header">
+<div class="chatbot-icon">💬</div>
+<h3>Business Intelligence Assistant</h3>
+</div>
+<p>Ask questions about this report or request additional insights about GCC business trends.</p>
+<div class="chat-interface" id="chat-messages">
+<div id="welcome-message" style="color: #666; margin-bottom: 15px;">
+<strong>Assistant:</strong> Hello! I can answer questions about this business intelligence report
+                    and provide additional insights about GCC markets. What would you like to know?
+                </div>
+</div>
+<div class="chat-input-container">
+<input class="chat-input" id="chat-input" placeholder="Type your question here..." type="text"/>
+<button class="chat-send-btn" id="chat-send">Send</button>
+</div>
+</div>
+<script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const chatMessages = document.getElementById('chat-messages');
+            const chatInput = document.getElementById('chat-input');
+            const chatSendBtn = document.getElementById('chat-send');
+            
+            // Store report content
+            const reportContent = document.querySelector('.report-body').innerText;
+            
+            // Function to add a message to the chat
+            function addMessage(sender, message) {
+                const msgDiv = document.createElement('div');
+                msgDiv.style.marginBottom = '10px';
+                
+                if (sender === 'user') {
+                    msgDiv.innerHTML = '<strong>You:</strong> ' + message;
+                    msgDiv.style.textAlign = 'right';
+                    msgDiv.style.color = '#2c3e50';
+                } else {
+                    msgDiv.innerHTML = '<strong>Assistant:</strong> ' + message;
+                    msgDiv.style.color = '#333';
+                }
+                
+                chatMessages.appendChild(msgDiv);
+                
+                // Scroll to bottom
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+            
+            // Function to send a message
+            function sendMessage() {
+                const message = chatInput.value.trim();
+                if (!message) return;
+                
+                // Add user message
+                addMessage('user', message);
+                
+                // Clear input
+                chatInput.value = '';
+                
+                // Add loading indicator
+                const loadingDiv = document.createElement('div');
+                loadingDiv.id = 'loading-indicator';
+                loadingDiv.innerHTML = '<strong>Assistant:</strong> <em>Thinking...</em>';
+                loadingDiv.style.color = '#999';
+                chatMessages.appendChild(loadingDiv);
+                
+                // Make API call
+                fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        report_content: reportContent,
+                        report_id: '20250325_205714'
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Remove loading indicator
+                    const loadingIndicator = document.getElementById('loading-indicator');
+                    if (loadingIndicator) {
+                        loadingIndicator.remove();
+                    }
+                    
+                    if (data.error) {
+                        addMessage('assistant', 'Error: ' + data.error);
+                    } else {
+                        addMessage('assistant', data.reply);
+                    }
+                })
+                .catch(error => {
+                    // Remove loading indicator
+                    const loadingIndicator = document.getElementById('loading-indicator');
+                    if (loadingIndicator) {
+                        loadingIndicator.remove();
+                    }
+                    
+                    console.error('Error:', error);
+                    addMessage('assistant', 'Sorry, there was an error processing your request. Please try again.');
+                });
+            }
+            
+            // Event listeners
+            chatSendBtn.addEventListener('click', sendMessage);
+            
+            chatInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+        });
+        </script>
+
+<p><em>© Global Possibilities. Report generated on March 25, 2025 at 08:57 PM.</em></p>
+        </div>
+        
+        <div class="report-footer">
+            <p>© Global Possibilities. Report generated on March 25, 2025 at 08:57 PM.</p>
+        </div>
+    </div>
+</body>
+</html>

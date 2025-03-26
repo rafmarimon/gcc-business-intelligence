@@ -1,0 +1,64 @@
+{
+    "name": "Nestle",
+    "description": "Customized report for Nestle focusing on consumer goods and sustainability in the GCC region",
+    "include_linkedin": false,
+    "include_chatbot": true,
+    "keywords": [
+        "consumer goods",
+        "food industry",
+        "beverage market",
+        "sustainability",
+        "supply chain",
+        "retail",
+        "FMCG",
+        "grocery retail",
+        "UAE consumer trends",
+        "Saudi consumer market",
+        "GCC food sector",
+        "food security",
+        "sustainable packaging",
+        "plant-based foods",
+        "dairy industry",
+        "coffee market",
+        "bottled water",
+        "infant nutrition",
+        "confectionery",
+        "culinary products",
+        "pet care",
+        "e-commerce retail",
+        "supermarket chains",
+        "product distribution",
+        "food safety regulations",
+        "nutritional trends",
+        "consumer health",
+        "local sourcing",
+        "food waste reduction",
+        "packaging innovation"
+    ],
+    "report_types": {
+        "daily": {
+            "description": "Daily consumer goods intelligence brief focused on Nestle-relevant topics",
+            "days_back": 1,
+            "articles_limit": 15,
+            "chart_types": ["keyword_frequency", "sentiment_analysis"]
+        },
+        "weekly": {
+            "description": "Weekly analysis of food industry trends and consumer behavior",
+            "days_back": 7,
+            "articles_limit": 30,
+            "chart_types": ["keyword_frequency", "sentiment_analysis", "product_category_trends"]
+        },
+        "monthly": {
+            "description": "Monthly consumer market analysis with sustainability insights",
+            "days_back": 30,
+            "articles_limit": 50,
+            "chart_types": ["keyword_frequency", "sentiment_analysis", "product_category_trends", "sustainability_focus"]
+        },
+        "quarterly": {
+            "description": "Quarterly strategic consumer goods outlook with market opportunity analysis",
+            "days_back": 90,
+            "articles_limit": 75,
+            "chart_types": ["keyword_frequency", "sentiment_analysis", "product_category_trends", "sustainability_focus", "competitor_analysis"]
+        }
+    }
+} 

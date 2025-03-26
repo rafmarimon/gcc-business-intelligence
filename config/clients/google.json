@@ -1,0 +1,64 @@
+{
+    "name": "Google",
+    "description": "Customized report for Google focusing on tech and digital transformation in the GCC region",
+    "include_linkedin": false,
+    "include_chatbot": true,
+    "keywords": [
+        "cloud computing",
+        "AI",
+        "machine learning",
+        "digital transformation",
+        "data centers",
+        "UAE tech",
+        "Saudi tech",
+        "GCC digital economy",
+        "smart cities",
+        "fintech",
+        "edtech",
+        "healthtech",
+        "e-commerce",
+        "mobile payments",
+        "software development",
+        "tech startups",
+        "tech investments",
+        "Google Cloud",
+        "GCC tech regulation",
+        "cyber security",
+        "big data",
+        "IoT",
+        "5G",
+        "quantum computing",
+        "digital government",
+        "NEOM",
+        "UAE AI strategy",
+        "Saudi Vision 2030 tech",
+        "Dubai Smart City",
+        "Abu Dhabi tech hub"
+    ],
+    "report_types": {
+        "daily": {
+            "description": "Daily tech intelligence brief focused on Google-relevant topics",
+            "days_back": 1,
+            "articles_limit": 15,
+            "chart_types": ["keyword_frequency", "sentiment_analysis"]
+        },
+        "weekly": {
+            "description": "Weekly analysis of tech trends and digital transformation opportunities",
+            "days_back": 7,
+            "articles_limit": 30,
+            "chart_types": ["keyword_frequency", "sentiment_analysis", "tech_sector_breakdown"]
+        },
+        "monthly": {
+            "description": "Monthly tech landscape analysis with competitive insights",
+            "days_back": 30,
+            "articles_limit": 50,
+            "chart_types": ["keyword_frequency", "sentiment_analysis", "tech_sector_breakdown", "innovation_trends"]
+        },
+        "quarterly": {
+            "description": "Quarterly strategic tech outlook with market opportunity analysis",
+            "days_back": 90,
+            "articles_limit": 75,
+            "chart_types": ["keyword_frequency", "sentiment_analysis", "tech_sector_breakdown", "innovation_trends", "competitor_analysis"]
+        }
+    }
+} 

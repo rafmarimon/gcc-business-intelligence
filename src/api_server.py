@@ -10,6 +10,7 @@ from pathlib import Path
 from flask import Flask, request, jsonify, send_from_directory, render_template
 from flask_cors import CORS
 from dotenv import load_dotenv
+import re
 
 # Configure logging
 logging.basicConfig(
@@ -63,13 +64,25 @@ def index():
 
 @app.route('/api/reports')
 def list_reports():
-    """List the available reports"""
+    """List the available reports, optionally filtered by client and frequency"""
     try:
-        reports_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'reports')
+        # Get query parameters
+        client = request.args.get('client', 'general')
+        frequency = request.args.get('frequency', 'daily')
+        
+        # Create the path for the specified client and frequency
+        client_dir = client.lower().replace(" ", "_")
+        reports_base_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'reports')
+        client_reports_dir = os.path.join(reports_base_dir, client_dir, frequency)
+        
+        # If the directory doesn't exist, fall back to the default directory
+        if not os.path.exists(client_reports_dir):
+            client_reports_dir = reports_base_dir
+        
         reports = []
         
         # Get all consolidated report markdown files
-        md_files = glob.glob(os.path.join(reports_dir, 'consolidated_report_*.md'))
+        md_files = glob.glob(os.path.join(client_reports_dir, 'consolidated_report_*.md'))
         
         # Sort by timestamp (newest first)
         md_files.sort(key=os.path.getmtime, reverse=True)
@@ -96,9 +109,15 @@ def list_reports():
             
             # Get first 200 characters of report as description
             description = ""
+            client_name = client.capitalize()
             try:
                 with open(md_file, 'r', encoding='utf-8') as f:
                     content = f.read()
+                    # Try to extract client name
+                    client_match = re.search(r'\*\*Prepared for:\*\* ([^\\n]+)', content)
+                    if client_match:
+                        client_name = client_match.group(1).strip()
+                    
                     # Skip title and get the actual content
                     parts = content.split('---', 2)
                     if len(parts) > 2:
@@ -109,18 +128,23 @@ def list_reports():
                     # Extract a brief description
                     description = actual_content.strip()[:200] + "..."
             except:
-                description = "Daily business intelligence report on GCC and UAE markets."
+                description = f"{frequency.capitalize()} business intelligence report on GCC and UAE markets."
+            
+            # Calculate relative path for URLs based on client directory
+            relative_dir = os.path.relpath(os.path.dirname(md_file), reports_base_dir)
             
             report_info = {
                 "title": f"Business Intelligence Report - {formatted_date}",
+                "client": client_name,
+                "frequency": frequency,
                 "date": date_obj.isoformat() if 'date_obj' in locals() else "",
                 "formatted_date": formatted_date,
                 "formatted_time": formatted_time,
                 "timestamp": timestamp,
                 "description": description,
-                "md_url": f"/reports/{os.path.basename(md_file)}",
-                "html_url": f"/reports/{os.path.basename(html_file)}",
-                "pdf_url": f"/reports/{os.path.basename(pdf_file)}"
+                "md_url": f"/reports/{relative_dir}/{os.path.basename(md_file)}",
+                "html_url": f"/reports/{relative_dir}/{os.path.basename(html_file)}",
+                "pdf_url": f"/reports/{relative_dir}/{os.path.basename(pdf_file)}"
             }
             
             reports.append(report_info)
@@ -138,9 +162,41 @@ def generate_report():
         data = request.json
         report_type = data.get('report_type', 'daily')
         collect_news = data.get('collect_news', True)
+        client = data.get('client', 'general')
+        
+        # Get available clients
+        clients_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'config', 'clients')
+        valid_clients = ['general']  # Always include general
+        
+        if os.path.exists(clients_dir):
+            for filename in os.listdir(clients_dir):
+                if filename.endswith('.json'):
+                    client_id = filename.replace('.json', '')
+                    valid_clients.append(client_id)
+        
+        # Validate inputs
+        valid_report_types = ['daily', 'weekly', 'monthly', 'quarterly']
+        
+        if report_type not in valid_report_types:
+            return jsonify({
+                "success": False,
+                "message": f"Invalid report type. Must be one of: {', '.join(valid_report_types)}"
+            }), 400
+            
+        if client not in valid_clients:
+            return jsonify({
+                "success": False,
+                "message": f"Invalid client. Must be one of: {', '.join(valid_clients)}"
+            }), 400
         
         # Prepare command arguments
         cmd_args = ['python', 'src/manual_run.py', '--no-browser']
+        
+        # Add client parameter
+        cmd_args.extend(['--client', client])
+        
+        # Add frequency parameter
+        cmd_args.extend(['--frequency', report_type])
         
         if not collect_news:
             cmd_args.append('--skip-collection')
@@ -163,6 +219,10 @@ def generate_report():
                 
                 # Run the script with proper arguments
                 run_args = [python_exec, script_path, '--no-browser']
+                if client:
+                    run_args.extend(['--client', client])
+                if report_type:
+                    run_args.extend(['--frequency', report_type])
                 if not collect_news:
                     run_args.append('--skip-collection')
                 
@@ -190,7 +250,7 @@ def generate_report():
         
         return jsonify({
             "success": True,
-            "message": "Report generation started. This will take a few minutes."
+            "message": f"Report generation started for client: {client}, type: {report_type}. This will take a few minutes."
         })
     
     except Exception as e:
@@ -206,6 +266,8 @@ def chat():
     data = request.json
     message = data.get('message', '')
     report_content = data.get('report_content', '')
+    client_name = data.get('client_name', 'General')
+    report_type = data.get('report_type', 'daily')
     
     if not message:
         return jsonify({"error": "No message provided"}), 400
@@ -216,10 +278,11 @@ def chat():
     try:
         # Create system prompt with context about GCC business
         system_prompt = (
-            "You are a knowledgeable business intelligence assistant specializing in GCC region "
-            "economics and business trends. Your responses should be helpful, professional, and "
-            "focused on providing accurate information about UAE and GCC business topics. "
-            "Keep responses concise (2-3 paragraphs maximum) but informative."
+            f"You are a knowledgeable business intelligence assistant specializing in GCC region "
+            f"economics and business trends. Your responses should be helpful, professional, and "
+            f"focused on providing accurate information about UAE and GCC business topics. "
+            f"Keep responses concise (2-3 paragraphs maximum) but informative.\n\n"
+            f"This is a {report_type} report prepared for {client_name}."
         )
         
         # If report content is provided, add it to the context
@@ -231,18 +294,18 @@ def chat():
         
         # Call OpenAI with the user message
         response = openai_client.create_chat_completion(
-            model="gpt-3.5-turbo",
+            model="gpt-4o",  # Use the more powerful model for better responses
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": message}
             ],
-            max_tokens=500,
+            max_tokens=600,
             temperature=0.7
         )
         
         # Extract the assistant's reply
         reply = response.choices[0].message.content.strip()
-        logger.info(f"Generated chatbot response for query: {message[:30]}...")
+        logger.info(f"Generated chatbot response for {client_name} query: {message[:30]}...")
         
         return jsonify({"reply": reply})
     
@@ -447,6 +510,86 @@ def serve_visualization(filename):
     """Serve visualization files"""
     viz_dir = os.path.join(forecasts_dir, "visualizations")
     return send_from_directory(viz_dir, filename)
+
+@app.route('/api/clients')
+def list_clients():
+    """List all available clients with their descriptions"""
+    try:
+        clients = []
+        clients_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'config', 'clients')
+        
+        if not os.path.exists(clients_dir):
+            return jsonify({"error": "Clients directory not found", "clients": []})
+        
+        for filename in os.listdir(clients_dir):
+            if filename.endswith('.json'):
+                client_id = filename.replace('.json', '')
+                try:
+                    with open(os.path.join(clients_dir, filename), 'r') as f:
+                        config = json.load(f)
+                        clients.append({
+                            "id": client_id,
+                            "name": config.get("name", client_id.capitalize()),
+                            "description": config.get("description", "Client-specific reports"),
+                            "include_linkedin": config.get("include_linkedin", False),
+                            "include_chatbot": config.get("include_chatbot", True)
+                        })
+                except Exception as e:
+                    logger.error(f"Error loading client config '{client_id}': {str(e)}")
+                    clients.append({
+                        "id": client_id,
+                        "name": client_id.capitalize(),
+                        "description": "Client-specific reports",
+                        "include_linkedin": False,
+                        "include_chatbot": True
+                    })
+        
+        # Sort by name
+        clients = sorted(clients, key=lambda x: x["id"])
+        
+        # Always include the general client if it doesn't exist
+        if not any(c["id"] == "general" for c in clients):
+            clients.insert(0, {
+                "id": "general",
+                "name": "Global Possibilities Team",
+                "description": "Internal team report with full analysis",
+                "include_linkedin": True,
+                "include_chatbot": True
+            })
+        
+        return jsonify({"clients": clients})
+    
+    except Exception as e:
+        logger.error(f"Error listing clients: {str(e)}")
+        return jsonify({"error": str(e), "clients": []}), 500
+
+@app.route('/api/report-types')
+def list_report_types():
+    """List all available report types with their descriptions"""
+    report_types = [
+        {
+            "id": "daily",
+            "name": "Daily Report",
+            "description": "Daily business intelligence brief covering latest news and developments"
+        },
+        {
+            "id": "weekly",
+            "name": "Weekly Report",
+            "description": "Weekly comprehensive analysis of key trends and market movements"
+        },
+        {
+            "id": "monthly",
+            "name": "Monthly Report",
+            "description": "Monthly deep dive into market trends with extended analysis"
+        },
+        {
+            "id": "quarterly",
+            "name": "Quarterly Report",
+            "description": "Quarterly strategic outlook with comprehensive market analysis"
+        }
+    ]
+    
+    return jsonify({"report_types": report_types})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

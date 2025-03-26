@@ -41,8 +41,18 @@ class ConsolidatedReportGenerator:
     """
     Generates a consolidated report containing daily business intelligence and LinkedIn posts.
     """
-    def __init__(self, reports_dir=None, standalone_mode=False):
-        """Initialize the consolidated report generator."""
+    def __init__(self, reports_dir=None, standalone_mode=False, client_name="Global Possibilities Team", 
+                 report_frequency="daily", include_linkedin=True, include_chatbot=True):
+        """Initialize the consolidated report generator.
+        
+        Args:
+            reports_dir: Directory to store generated reports. If None, uses default.
+            standalone_mode: If True, don't initialize analyzers and generators.
+            client_name: Name of the client for customized reports.
+            report_frequency: Frequency of the report (daily, weekly, monthly, quarterly).
+            include_linkedin: Whether to include LinkedIn posts in the report.
+            include_chatbot: Whether to include the interactive chatbot in HTML reports.
+        """
         # Set the reports directory
         if reports_dir:
             self.reports_dir = reports_dir
@@ -54,6 +64,12 @@ class ConsolidatedReportGenerator:
             
         # Create reports directory if it doesn't exist
         os.makedirs(self.reports_dir, exist_ok=True)
+        
+        # Store client and report settings
+        self.client_name = client_name
+        self.report_frequency = report_frequency
+        self.include_linkedin = include_linkedin
+        self.include_chatbot = include_chatbot
         
         # Only initialize analyzers and generators if not in standalone mode
         if not standalone_mode:
@@ -77,6 +93,8 @@ class ConsolidatedReportGenerator:
             self.linkedin_generator = None
             
         logger.info(f"Consolidated Report Generator initialized with reports directory: {self.reports_dir}")
+        logger.info(f"Client: {self.client_name}, Frequency: {self.report_frequency}")
+        logger.info(f"Include LinkedIn: {self.include_linkedin}, Include Chatbot: {self.include_chatbot}")
         logger.info(f"Standalone mode: {standalone_mode}")
     
     def generate_all(self, articles=None):
@@ -89,16 +107,16 @@ class ConsolidatedReportGenerator:
             tuple: (markdown_path, html_path, pdf_path) - paths to the generated files
         """
         try:
-            logger.info("Processing articles and generating report...")
+            logger.info(f"Processing articles and generating report for {self.client_name}...")
             
             # If articles are provided, analyze them
             if articles and self.analyzer:
                 # Process articles to generate report content
                 report_text = self.analyzer.analyze_news(articles)
                 
-                # Generate LinkedIn posts if analyzer is available
+                # Generate LinkedIn posts if analyzer is available and LinkedIn is enabled
                 linkedin_posts = None
-                if self.linkedin_generator:
+                if self.linkedin_generator and self.include_linkedin:
                     linkedin_posts = self.linkedin_generator.generate_linkedin_posts(report_text)
             else:
                 # For testing or when articles aren't provided
@@ -106,6 +124,8 @@ class ConsolidatedReportGenerator:
                 # Generate a simple report with placeholder content
                 current_date = datetime.now().strftime("%B %d, %Y")
                 report_text = f"## GCC Business Intelligence: {current_date}\n\n"
+                report_text += f"Report prepared for: {self.client_name}\n\n"
+                report_text += f"Report frequency: {self.report_frequency}\n\n"
                 report_text += "No articles were provided for analysis. This is a placeholder report."
                 linkedin_posts = None
             
@@ -188,13 +208,21 @@ class ConsolidatedReportGenerator:
                 # Write title
                 f.write(f"# Business Intelligence Report: {current_date}\n\n")
                 
+                # Add client information
+                f.write(f"**Prepared for:** {self.client_name}\n\n")
+                
+                # Add report frequency
+                f.write(f"**Report type:** {self.report_frequency.capitalize()}\n\n")
+                
                 # Add timestamp and report ID
                 f.write(f"**Generated:** {current_date} at {current_time} | **Report ID:** {timestamp}\n\n")
                 
                 # Add Table of Contents
                 f.write("## Table of Contents\n\n")
                 f.write("1. [Business Intelligence Report](#business-intelligence-report)\n")
-                f.write("2. [LinkedIn Posts](#linkedin-posts)\n\n")
+                if linkedin_posts and self.include_linkedin:
+                    f.write("2. [LinkedIn Posts](#linkedin-posts)\n")
+                f.write("\n")
                 
                 # Add horizontal ruler
                 f.write("---\n\n")
@@ -221,152 +249,158 @@ class ConsolidatedReportGenerator:
             return None, None
     
     def _create_html_version(self, markdown_path):
-        """Create an HTML version of the consolidated report for easier viewing.
-        
-        This method will convert the markdown to HTML and add hyperlinked headlines
-        to the original articles where possible.
-        """
+        """Create an HTML version of the report with optional chatbot."""
         try:
+            # Check if the markdown file exists
+            if not os.path.exists(markdown_path):
+                logger.error(f"Markdown file not found: {markdown_path}")
+                return None
+            
             # Read the markdown content
             with open(markdown_path, 'r', encoding='utf-8') as f:
-                md_content = f.read()
+                markdown_content = f.read()
             
-            # Convert to HTML
-            html_content = markdown.markdown(md_content, extensions=['tables', 'fenced_code', 'nl2br'])
+            # Convert markdown to HTML
+            html_content = markdown.markdown(markdown_content, extensions=['tables', 'fenced_code'])
             
-            # Get the timestamp from the filename
-            base_name = os.path.basename(markdown_path)
-            timestamp = base_name.replace('consolidated_report_', '').replace('.md', '')
+            # Get timestamp from filename
+            filename = os.path.basename(markdown_path)
+            match = re.search(r'consolidated_report_(\d{8}_\d{6})\.md', filename)
+            timestamp = match.group(1) if match else datetime.now().strftime("%Y%m%d_%H%M%S")
             
-            # Parse timestamp for display
+            # Parse the date from timestamp
             try:
-                date_obj = datetime.strptime(timestamp, '%Y%m%d_%H%M%S')
-                formatted_date = date_obj.strftime('%B %d, %Y')
-                formatted_time = date_obj.strftime('%I:%M %p')
+                date_obj = datetime.strptime(timestamp, "%Y%m%d_%H%M%S")
+                formatted_date = date_obj.strftime("%B %d, %Y")
+                formatted_time = date_obj.strftime("%I:%M %p")
             except:
                 formatted_date = "Unknown Date"
                 formatted_time = "Unknown Time"
             
-            # Create assets directory for images and CSS
-            assets_dir = os.path.join(self.reports_dir, 'assets')
+            # Create output HTML file path
+            html_path = markdown_path.replace('.md', '.html')
+            
+            # Create assets directory if it doesn't exist
+            assets_dir = os.path.join(os.path.dirname(html_path), 'assets')
             os.makedirs(assets_dir, exist_ok=True)
             
-            # Create or copy CSS file
+            # Get default CSS
             css_content = self._get_default_css()
+            
+            # Create CSS file
             css_path = os.path.join(assets_dir, 'report.css')
             with open(css_path, 'w', encoding='utf-8') as f:
                 f.write(css_content)
             
-            # Add header image/logo if exists
-            header_img = None
-            logo_path = os.path.join(assets_dir, 'logo.png')
-            if os.path.exists(logo_path):
-                header_img = 'assets/logo.png'
-            
-            # Process HTML to add hyperlinks to headlines
+            # Parse HTML with BeautifulSoup for further manipulation
             soup = BeautifulSoup(html_content, 'html.parser')
             
-            # Find all headings that look like article headlines
-            for heading in soup.find_all(['h2', 'h3', 'h4']):
-                # Skip section headings like "Business Intelligence Report" or "LinkedIn Posts"
-                if heading.get_text().strip() in ["Business Intelligence Report", "LinkedIn Posts", "Table of Contents"]:
+            # Find headings that look like article headlines and add hyperlinks if possible
+            headings = soup.find_all(['h2', 'h3', 'h4'])
+            for heading in headings:
+                # Skip section headings like "Business Intelligence Report" and "LinkedIn Posts"
+                if heading.text.strip() in ["Business Intelligence Report", "LinkedIn Posts"]:
                     continue
-                    
-                # Look for URLs in the text after this heading - can be in paragraphs or lists
+                
+                # Check if there's a URL in the elements after this heading
                 next_elements = []
                 current = heading.next_sibling
-                
-                # Collect the next few elements after the heading
-                while current and len(next_elements) < 5:
-                    if current.name in ['p', 'li', 'ul', 'ol']:
+                for _ in range(5):  # Look at up to 5 elements after the heading
+                    if current:
                         next_elements.append(current)
-                    current = current.next_sibling
+                        current = current.next_sibling
+                    else:
+                        break
                 
-                # Look for URL patterns in these elements
-                url = None
+                # Look for URLs in the text of these elements
+                url_match = None
                 for element in next_elements:
-                    text = element.get_text()
-                    # Look for common URL patterns or Source: mentions
-                    url_match = re.search(r'https?://[^\s]+', text)
-                    source_match = re.search(r'Source:\s*(https?://[^\s]+)', text)
-                    
-                    if url_match:
-                        url = url_match.group(0)
-                        break
-                    elif source_match:
-                        url = source_match.group(1)
-                        break
+                    if hasattr(element, 'text'):
+                        # Look for URL patterns in text
+                        matches = re.findall(r'https?://[^\s<>"]+|www\.[^\s<>"]+', element.text)
+                        if matches:
+                            url_match = matches[0]
+                            if not url_match.startswith('http'):
+                                url_match = 'https://' + url_match
+                            break
+                        # Look for "Source: example.com" pattern
+                        source_match = re.search(r'Source[s]?:\s*([^\s<>",]+\.[^\s<>",]+)', element.text)
+                        if source_match:
+                            domain = source_match.group(1)
+                            url_match = f"https://{domain}"
+                            break
                 
-                # If we found a URL, wrap the heading in a link
-                if url:
-                    # Create a new a tag
-                    new_a = soup.new_tag('a', href=url, target='_blank')
-                    
-                    # Move the heading contents into the link
-                    for content in list(heading.contents):
-                        new_a.append(content.extract())
-                    
-                    # Add the link to the heading
-                    heading.append(new_a)
+                # If a URL was found, wrap the heading in a link
+                if url_match:
+                    link = soup.new_tag('a', href=url_match, target='_blank')
+                    # Move the contents of the heading to the link
+                    link.contents = heading.contents
+                    # Clear the heading and append the link
+                    heading.clear()
+                    heading.append(link)
             
             # Add the chatbot if needed
-            chatbot_html = self._get_chatbot_html(timestamp)
+            chatbot_html = None
+            if self.include_chatbot:
+                chatbot_html = self._get_chatbot_html(timestamp)
+            
             if chatbot_html:
                 # Find the spot to insert chatbot - after LinkedIn Posts or at the end
-                linkedin_section = soup.find(lambda tag: tag.name in ['h1', 'h2'] and 'LinkedIn Posts' in tag.get_text())
-                if linkedin_section:
-                    # Find the position after the LinkedIn content
-                    current = linkedin_section
-                    while current and current.name != 'hr':
-                        current = current.find_next()
+                linkedin_heading = soup.find('h2', string='LinkedIn Posts')
+                
+                if linkedin_heading:
+                    # Find the next h2 after LinkedIn Posts or the end of document
+                    current = linkedin_heading
+                    while current.next_sibling and current.name != 'h2':
+                        current = current.next_sibling
                     
-                    if current:
-                        chatbot_div = BeautifulSoup(chatbot_html, 'html.parser')
-                        current.insert_after(chatbot_div)
+                    # Insert chatbot after LinkedIn section
+                    chatbot_div = BeautifulSoup(chatbot_html, 'html.parser')
+                    current.insert_after(chatbot_div)
                 else:
-                    # Add at the end
+                    # Add to the end of the document
                     chatbot_div = BeautifulSoup(chatbot_html, 'html.parser')
                     soup.append(chatbot_div)
             
-            # Get the updated HTML content
-            processed_html = str(soup)
-            
-            # Create the complete HTML document with styling
-            html_path = markdown_path.replace('.md', '.html')
-            with open(html_path, 'w', encoding='utf-8') as f:
-                f.write(f"""<!DOCTYPE html>
+            # Create a complete HTML document
+            html_document = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Business Intelligence Report: {formatted_date}</title>
+    <title>Business Intelligence Report - {formatted_date}</title>
     <link rel="stylesheet" href="assets/report.css">
 </head>
 <body>
     <div class="report-container">
-        <div class="report-header">
-            <div class="header-content">
-                {"<img src='" + header_img + "' alt='Logo' class='logo'>" if header_img else ""}
-                <div class="header-text">
-                    <h1>Business Intelligence Report</h1>
-                    <div class="date-badge">{formatted_date}</div>
-                </div>
-            </div>
-        </div>
+        <header class="report-header">
+            <h1>Business Intelligence Report</h1>
+            <p class="report-meta">
+                <span class="client-name">Prepared for: {self.client_name}</span> | 
+                <span class="report-type">{self.report_frequency.capitalize()} Report</span> | 
+                <span class="report-date">Generated on {formatted_date} at {formatted_time}</span>
+            </p>
+        </header>
         
         <div class="report-body">
-            {processed_html}
+            {soup.prettify()}
         </div>
         
-        <div class="report-footer">
-            <p>© Global Possibilities. Report generated on {formatted_date} at {formatted_time}.</p>
-        </div>
+        <footer class="report-footer">
+            <p>&copy; {datetime.now().year} Global Possibilities - All Rights Reserved</p>
+            <p>This report is confidential and intended solely for the use of the client named above.</p>
+        </footer>
     </div>
 </body>
-</html>""")
+</html>
+"""
+            
+            # Write the HTML file
+            with open(html_path, 'w', encoding='utf-8') as f:
+                f.write(html_document)
             
             return html_path
-            
+        
         except Exception as e:
             logger.error(f"Error creating HTML version: {e}")
             return None
@@ -855,8 +889,8 @@ h2 a::after, h3 a::after, h4 a::after {
 
     def _get_chatbot_html(self, timestamp):
         """Get the HTML for the interactive chatbot."""
-        # Check if OpenAI API key is set
-        if not os.getenv('OPENAI_API_KEY'):
+        # Check if OpenAI API key is set and chatbot is enabled
+        if not os.getenv('OPENAI_API_KEY') or not self.include_chatbot:
             return None
         
         # Only include chatbot in HTML version, not PDF
@@ -935,6 +969,8 @@ h2 a::after, h3 a::after, h4 a::after {
                     body: JSON.stringify({{
                         message: message,
                         report_content: reportContent,
+                        client_name: '{self.client_name}',
+                        report_type: '{self.report_frequency}',
                         report_id: '{timestamp}'
                     }})
                 }})

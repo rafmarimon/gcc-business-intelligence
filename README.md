@@ -1,211 +1,155 @@
-# Global Possibilities - UAE/GCC Business Intelligence Platform
+# GP Business Intelligence Platform
 
-A comprehensive platform for collecting, analyzing, and generating actionable insights from business news in the UAE and GCC region.
-
-## Overview
-
-This platform automates the following workflow:
-
-1. **News Collection**: Scrapes business news from major UAE/GCC news sources
-2. **Analysis**: Analyzes collected news using NLP and LLMs to identify trends, opportunities, and key insights
-3. **Report Generation**: Creates detailed weekly reports with visualizations and actionable intelligence
-4. **LinkedIn Content**: Automatically generates professional LinkedIn posts based on the most significant insights
-5. **Interactive Reports**: Provides HTML reports with the company logo and an interactive chatbot assistant
-
-The entire process can be triggered with a single command, producing both detailed business intelligence reports and ready-to-post LinkedIn content.
+A comprehensive business intelligence platform focused on GCC markets, automating the collection, analysis, and reporting of business news and trends.
 
 ## Features
 
-- **Automated News Collection**: Scrapes business articles from multiple configurable sources
-- **Intelligent Analysis**: Uses NLP and OpenAI's GPT models to identify trends, opportunities, and insights
-- **Keyword Analysis**: Tracks frequency and correlation of business-relevant keywords
-- **Visualization**: Generates charts and graphs to visualize data trends
-- **Report Generation**: Creates comprehensive markdown and HTML reports
-- **LinkedIn Content Generation**: Automatically creates professional social media posts
-- **Consolidated Output**: Combines all insights and content into a single, well-formatted report
-- **Interactive Chatbot**: AI-powered assistant that can answer questions about the report and GCC business trends
-- **Professional Design**: Modern, responsive HTML design with Global Possibilities branding
+- **Automated News Collection**: Collect news from multiple sources across the GCC region
+- **Intelligent Analysis**: Process news articles using ML to identify key trends, topics, and sentiment
+- **Client-Specific Reports**: Generate customized reports for different clients (Google, Nestle, etc.)
+- **Multiple Report Frequencies**: Support for daily, weekly, monthly, and quarterly report generation
+- **Interactive Reports**: HTML reports with interactive elements and embedded chatbot functionality
+- **LinkedIn Content Generation**: Automatically create LinkedIn posts based on report insights
+- **Web Interface**: Easy-to-use interface for generating and viewing reports
 
-## Project Structure
-
-```
-.
-├── config/                   # Configuration files
-│   ├── news_sources.json     # News source definitions and selectors
-│   └── keywords.json         # Keywords for trend analysis
-├── content/                  # Generated LinkedIn posts
-├── data/                     # Collected news data (JSON/CSV)
-├── reports/                  # Generated reports
-│   └── assets/               # Report assets (images, logo)
-├── logs/                     # Log files
-├── src/                      # Source code
-│   ├── collectors/           # Data collection modules
-│   │   └── news_collector.py # News web scraping module
-│   ├── processors/           # Data processing modules
-│   │   └── news_analyzer.py  # News analysis and report generation
-│   ├── generators/           # Content generation modules
-│   │   ├── linkedin_content.py     # LinkedIn post generator
-│   │   └── consolidated_report.py   # Combined report generator
-│   ├── utils/                # Utility modules
-│   │   └── openai_utils.py   # OpenAI API wrapper with rate limiting
-│   ├── api_server.py         # API server for chatbot functionality
-│   └── manual_run.py         # Script to run the complete process
-├── .env                      # Environment variables (API keys, etc.)
-├── requirements.txt          # Python dependencies
-├── setup.py                  # Installation and setup script
-└── README.md                 # This file
-```
-
-## Installation
+## Getting Started
 
 ### Prerequisites
 
-- Python 3.8 or higher
-- An OpenAI API key (for report generation and LinkedIn posts)
+- Python 3.10 or higher
+- Required Python packages (listed in requirements.txt)
+- Environment variables for API keys (optional)
 
-### Setup
+### Installation
 
 1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/gcc-business-intelligence.git
-   cd gcc-business-intelligence
+   ```
+   git clone https://github.com/yourusername/gp-business-intelligence.git
+   cd gp-business-intelligence
    ```
 
-2. Run the setup script:
-   ```bash
-   python setup.py
+2. Install the required packages:
+   ```
+   pip install -r requirements.txt
    ```
 
-   This will:
-   - Create necessary directories
-   - Set up a virtual environment
-   - Install required dependencies
-   - Create template configuration files
+3. Set up configuration files:
+   - News sources configuration in `config/news_sources.json`
+   - LinkedIn configuration in `config/linkedin_config.json`
+   - Client configurations in `config/clients/`
 
-3. Edit the `.env` file to add your OpenAI API key:
+4. Set up environment variables (optional):
    ```
-   OPENAI_API_KEY=your_openai_api_key_here
-   ```
-
-4. Install additional packages for the chatbot feature:
-   ```bash
-   pip install flask flask-cors
+   NEWS_API_KEY=your_news_api_key
+   OPENAI_API_KEY=your_openai_api_key
    ```
 
-## Usage
+### Running the Platform
 
-### Run the Complete Process
-
-To run the entire workflow (collection, analysis, and content generation):
-
-```bash
-# Activate the virtual environment
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Run the complete process
-python src/manual_run.py
-```
-
-### Run Specific Steps
-
-You can run specific parts of the process using command-line flags:
-
-```bash
-# Skip collection (use existing data)
-python src/manual_run.py --skip-collection
-
-# Skip report generation
-python src/manual_run.py --skip-report
-
-# Generate report but don't open browser automatically
-python src/manual_run.py --no-browser
-```
-
-### Using the Interactive Chatbot
-
-The HTML reports include an interactive chatbot that can answer questions about the report content and GCC business trends. To use this feature:
+#### Using the Web Interface
 
 1. Start the API server:
-   ```bash
-   source venv/bin/activate
+   ```
    python src/api_server.py
    ```
 
-2. Open the HTML report in your browser.
+2. Open your browser and navigate to `http://localhost:5000`
 
-3. Click the chat icon in the bottom-right corner to open the chatbot interface.
+#### Using the Command Line
 
-4. Ask questions about the report content or GCC business trends.
+Generate a report using the command line:
 
-### View the Results
-
-- **Reports**: Check the `reports/` directory for generated reports (both Markdown and HTML)
-- **LinkedIn Content**: Find generated posts in the `content/` directory
-- **Collected Data**: Raw collected news data is stored in the `data/` directory
-
-## Customization
-
-### Adding News Sources
-
-Edit the `config/news_sources.json` file to add or modify news sources:
-
-```json
-{
-  "source_id": {
-    "name": "News Source Name",
-    "url": "https://example.com/business",
-    "language": "en",
-    "country": "UAE",
-    "selectors": {
-      "article": "CSS selector for article containers",
-      "headline": "CSS selector for headlines",
-      "summary": "CSS selector for article summaries",
-      "link": "CSS selector for article links",
-      "date": "CSS selector for publication dates"
-    },
-    "base_url": "https://example.com"
-  }
-}
+```
+python src/manual_run.py --client general --frequency daily
 ```
 
-### Modifying Analysis Keywords
+Command line options:
+- `--client`: Client to generate a report for (general, google, nestle)
+- `--frequency`: Report frequency (daily, weekly, monthly, quarterly)
+- `--skip-collection`: Skip news collection and use existing data
+- `--no-browser`: Don't open the report in a browser automatically
+- `--open-latest`: Open the latest report without generating a new one
 
-Edit the `config/keywords.json` file to customize keywords used for trend analysis:
+## Client-Specific Reports
 
-```json
-{
-  "category_name": [
-    "keyword1",
-    "keyword2",
-    "..."
-  ]
-}
+The platform supports generating custom reports for different clients with specific focus areas:
+
+### General (Global Possibilities Team)
+
+Internal reports with full analysis and LinkedIn content generation.
+
+```
+python src/manual_run.py --client general --frequency daily
 ```
 
-### Customizing Report Templates
+### Google
 
-The HTML report template can be customized by modifying the `_create_html_version` method in the `src/generators/consolidated_report.py` file. This includes:
+Reports focused on tech and digital transformation in the GCC region.
 
-- Styling and theming
-- Layout and structure
-- Chatbot functionality
-- Logo and branding elements
+```
+python src/manual_run.py --client google --frequency weekly
+```
 
-## Technologies Used
+### Nestle
 
-- **Web Scraping**: BeautifulSoup, Requests
-- **Data Processing**: Pandas, NLTK
-- **Visualization**: Matplotlib, Seaborn
-- **Report Generation**: Markdown, HTML, CSS
-- **AI/LLM**: OpenAI GPT-3.5/4
-- **Environment Management**: python-dotenv
-- **API Server**: Flask, Flask-CORS
-- **Frontend**: HTML, CSS, JavaScript
+Reports focused on consumer goods and sustainability in the GCC region.
+
+```
+python src/manual_run.py --client nestle --frequency monthly
+```
+
+## Adding New Clients
+
+To add a new client:
+
+1. Create a new configuration file in `config/clients/` with the client name (e.g., `clientname.json`)
+2. Define the client parameters including name, description, keywords, and report types
+3. Run reports for the new client using the `--client clientname` parameter
+
+## Report Structure
+
+The generated reports include:
+
+- Executive summary
+- Key trends and insights
+- Major news highlights
+- Sentiment analysis
+- Keyword analysis
+- Sector-specific information
+- Visualizations and charts
+- Client-specific focus areas
+- LinkedIn content suggestions (for internal reports)
+
+## Directory Structure
+
+```
+gp-business-intelligence/
+├── config/                  # Configuration files
+│   ├── clients/             # Client-specific configurations
+│   ├── linkedin_config.json # LinkedIn content generation settings
+│   └── news_sources.json    # News sources configuration
+├── data/                    # Collected data storage
+├── reports/                 # Generated reports
+│   ├── general/             # Reports for internal team
+│   ├── google/              # Reports for Google
+│   └── nestle/              # Reports for Nestle
+├── src/                     # Source code
+│   ├── api_server.py        # API server for web interface
+│   ├── collectors/          # News collection modules
+│   ├── generators/          # Report generation modules
+│   ├── manual_run.py        # Command-line interface
+│   ├── processors/          # News processing and analysis
+│   ├── static/              # Static web files
+│   └── templates/           # HTML templates
+└── README.md                # This file
+```
 
 ## License
 
-Copyright © Global Possibilities. All rights reserved.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Acknowledgments
 
-This project was developed to provide actionable business intelligence and content generation for professionals focused on the UAE and GCC markets. 
+- Built by the Global Possibilities Team
+- Uses OpenAI for advanced text generation
+- Integrated with various news APIs and sources 

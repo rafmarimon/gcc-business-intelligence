@@ -1,0 +1,64 @@
+{
+    "name": "Global Possibilities Team",
+    "description": "Internal team report with full analysis and LinkedIn content",
+    "include_linkedin": true,
+    "include_chatbot": true,
+    "keywords": [
+        "UAE economy",
+        "GCC markets",
+        "Dubai business",
+        "Abu Dhabi investment",
+        "Saudi economy",
+        "Qatar business",
+        "Kuwait finance",
+        "Bahrain economy",
+        "Oman development",
+        "MENA region",
+        "Gulf trade",
+        "Middle East economy",
+        "UAE growth",
+        "GCC development",
+        "Dubai projects",
+        "Saudi Vision 2030",
+        "Expo 2020",
+        "UAE inflation",
+        "GCC stocks",
+        "oil prices",
+        "energy market",
+        "renewable energy",
+        "sustainability",
+        "digital transformation",
+        "fintech",
+        "real estate",
+        "tourism sector",
+        "retail market",
+        "banking sector",
+        "investment opportunities"
+    ],
+    "report_types": {
+        "daily": {
+            "description": "Daily business intelligence brief covering latest news and developments",
+            "days_back": 1,
+            "articles_limit": 25,
+            "chart_types": ["keyword_frequency", "sentiment_analysis"]
+        },
+        "weekly": {
+            "description": "Weekly comprehensive analysis of key trends and market movements",
+            "days_back": 7,
+            "articles_limit": 50,
+            "chart_types": ["keyword_frequency", "sentiment_analysis", "sector_distribution", "source_breakdown"]
+        },
+        "monthly": {
+            "description": "Monthly deep dive into market trends with extended analysis",
+            "days_back": 30,
+            "articles_limit": 100,
+            "chart_types": ["keyword_frequency", "sentiment_analysis", "sector_distribution", "source_breakdown", "topic_trends"]
+        },
+        "quarterly": {
+            "description": "Quarterly strategic outlook with comprehensive market analysis",
+            "days_back": 90,
+            "articles_limit": 150,
+            "chart_types": ["keyword_frequency", "sentiment_analysis", "sector_distribution", "source_breakdown", "topic_trends", "geographic_distribution"]
+        }
+    }
+} 

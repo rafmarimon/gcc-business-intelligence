@@ -6,12 +6,13 @@
       "country": "UAE",
       "language": "English",
       "category": "Business",
+      "type": "html",
       "crawl_pattern": {
-        "article_selector": "div[class*='story'], article, .card",
-        "headline_selector": "*[class*='title'] a, h3 a, h4 a",
-        "summary_selector": "*[class*='teaser'], *[class*='desc'], p",
-        "link_selector": "*[class*='title'] a, h3 a, h4 a",
-        "date_selector": "time, *[class*='date'], *[class*='time']"
+        "article_selector": "article, .story, .card, .teaser, div[data-testid*='story'], .article, .news-item",
+        "headline_selector": "h1, h2, h3, h4, .headline, .title, a[class*='title'], a[class*='headline']",
+        "summary_selector": ".teaser, .desc, .summary, p, .standfirst",
+        "link_selector": "a[href*='/business/'], a[href*='/economy/'], a[href*='/markets/']",
+        "date_selector": "time, .date, .timestamp, [class*='date'], [class*='time']"
       }
     },
     {
@@ -20,12 +21,13 @@
       "country": "UAE",
       "language": "English",
       "category": "Business",
+      "type": "html",
       "crawl_pattern": {
-        "article_selector": "article, .card, div[class*='article']",
-        "headline_selector": "h4 a, *[class*='title'] a, .headline a",
-        "summary_selector": ".desc, *[class*='summary'], p",
-        "link_selector": "h4 a, *[class*='title'] a, a[class*='headline']",
-        "date_selector": ".time-elapsed, time, *[class*='date']"
+        "article_selector": "article, .card, div[class*='article'], .kt-item, .news-item, .story, div[class*='story'], .teaser",
+        "headline_selector": "h1, h2, h3, h4, a[class*='title'], a[class*='headline'], .title, .headline",
+        "summary_selector": ".desc, .summary, .teaser, p, div[class*='desc'], div[class*='summary']",
+        "link_selector": "a[href*='/business/'], a[href*='/economy/'], a[href*='/markets/']",
+        "date_selector": ".time-elapsed, time, [class*='date'], [class*='time']"
       }
     },
     {
@@ -34,6 +36,7 @@
       "country": "Saudi Arabia",
       "language": "English",
       "category": "Business",
+      "type": "html",
       "crawl_pattern": {
         "article_selector": ".article-list-item, article, div[class*='article']",
         "headline_selector": ".article-item-title a, h2 a, h3 a, *[class*='title'] a",
@@ -48,6 +51,7 @@
       "country": "UAE",
       "language": "English",
       "category": "Business",
+      "type": "html",
       "crawl_pattern": {
         "article_selector": ".news-card, article, .card, div[class*='news']",
         "headline_selector": ".news-card-title a, *[class*='title'] a, h3 a",
@@ -62,6 +66,7 @@
       "country": "UAE",
       "language": "English",
       "category": "Business",
+      "type": "html",
       "crawl_pattern": {
         "article_selector": ".article-card, article, div[class*='article']",
         "headline_selector": ".article-card__title a, *[class*='title'] a, h2 a, h3 a",
@@ -76,6 +81,7 @@
       "country": "UAE",
       "language": "English",
       "category": "Business",
+      "type": "html",
       "crawl_pattern": {
         "article_selector": "article, .post, div[class*='article']",
         "headline_selector": "h2 a, h3 a, *[class*='title'] a",
@@ -90,6 +96,7 @@
       "country": "US/UAE",
       "language": "English",
       "category": "Business & Diplomatic",
+      "type": "html",
       "crawl_pattern": {
         "article_selector": "article, .post, .news-item, div[class*='article']",
         "headline_selector": "h2 a, h3 a, .entry-title a, *[class*='title'] a",
@@ -104,6 +111,7 @@
       "country": "US/UAE",
       "language": "English",
       "category": "Business & Diplomatic",
+      "type": "html",
       "crawl_pattern": {
         "article_selector": ".resource-item, article, .card, div[class*='publication']",
         "headline_selector": "h2 a, h3 a, *[class*='title'] a",
@@ -118,6 +126,7 @@
       "country": "UAE",
       "language": "English",
       "category": "Diplomatic",
+      "type": "html",
       "crawl_pattern": {
         "article_selector": ".article-card, article, div[class*='article']",
         "headline_selector": ".article-card__title a, *[class*='title'] a, h2 a, h3 a",
@@ -132,6 +141,7 @@
       "country": "UAE",
       "language": "English",
       "category": "Diplomatic",
+      "type": "html",
       "crawl_pattern": {
         "article_selector": ".news-card, article, .card, div[class*='news']",
         "headline_selector": ".news-card-title a, *[class*='title'] a, h3 a",
@@ -146,12 +156,148 @@
       "country": "UAE",
       "language": "English",
       "category": "Diplomatic",
+      "type": "html",
       "crawl_pattern": {
         "article_selector": ".news-card, article, .card, div[class*='news']",
         "headline_selector": ".news-card-title a, *[class*='title'] a, h3 a",
         "summary_selector": ".news-card-summary, *[class*='summary'], *[class*='desc'], p",
         "link_selector": ".news-card-title a, *[class*='title'] a, h3 a",
         "date_selector": ".news-card-date, time, *[class*='date']"
+      }
+    },
+    {
+      "name": "UAE Ministry of Economy",
+      "url": "https://www.moec.gov.ae/en/media-center",
+      "country": "UAE",
+      "language": "English",
+      "category": "Government",
+      "type": "html",
+      "crawl_pattern": {
+        "article_selector": ".news-item, article, .card, div[class*='article'], .media-item",
+        "headline_selector": "h1, h2, h3, h4, a[class*='title'], .title, .news-title",
+        "summary_selector": ".desc, .summary, p, .description, .excerpt",
+        "link_selector": "a[href*='/media-center/'], a[href*='/news/']",
+        "date_selector": "time, [class*='date'], .publish-date, [class*='time']"
+      }
+    },
+    {
+      "name": "Dubai Economy Department",
+      "url": "https://www.dubaieconomy.ae/English/MediaCenter/Pages/NewsListing.aspx",
+      "country": "UAE",
+      "language": "English",
+      "category": "Government",
+      "type": "html",
+      "crawl_pattern": {
+        "article_selector": ".news-item, article, .ms-rtestate-field, div[class*='news']",
+        "headline_selector": "h1, h2, h3, h4, a, .news-title",
+        "summary_selector": "p, .summary, .description",
+        "link_selector": "a[href*='/MediaCenter/'], a[href*='/News/']",
+        "date_selector": "time, .date, [class*='date'], [class*='time']"
+      }
+    },
+    {
+      "name": "UAE Government News",
+      "url": "https://u.ae/en/information-and-services",
+      "country": "UAE",
+      "language": "English",
+      "category": "Government",
+      "type": "html",
+      "crawl_pattern": {
+        "article_selector": "article, .card, div[class*='article'], .news-item",
+        "headline_selector": "h1, h2, h3, h4, a, .title",
+        "summary_selector": "p, .summary, .description",
+        "link_selector": "a[href*='/information-and-services']",
+        "date_selector": "time, .date, [class*='date']"
+      }
+    },
+    {
+      "name": "Abu Dhabi Department of Economic Development",
+      "url": "https://added.gov.ae/en/media-centre/news",
+      "country": "UAE",
+      "language": "English",
+      "category": "Government",
+      "type": "html",
+      "crawl_pattern": {
+        "article_selector": ".news-item, article, .news-card, div[class*='article']",
+        "headline_selector": "h1, h2, h3, h4, a, .title",
+        "summary_selector": "p, .summary, .description",
+        "link_selector": "a[href*='/media-centre/'], a[href*='/news/']",
+        "date_selector": "time, .date, [class*='date']"
+      }
+    },
+    {
+      "name": "US Department of Commerce News",
+      "url": "https://www.commerce.gov/news",
+      "country": "USA",
+      "language": "English",
+      "category": "Government",
+      "type": "html",
+      "crawl_pattern": {
+        "article_selector": "article, .card, .usa-card, .news-item, div[class*='article']",
+        "headline_selector": "h1, h2, h3, h4, a, .title, .usa-card__heading",
+        "summary_selector": "p, .summary, .description",
+        "link_selector": "a[href*='/news/']",
+        "date_selector": "time, .date, [class*='date']"
+      }
+    },
+    {
+      "name": "US Trade Representative News",
+      "url": "https://ustr.gov/about-us/policy-offices/press-office/press-releases",
+      "country": "USA",
+      "language": "English",
+      "category": "Government",
+      "type": "html",
+      "crawl_pattern": {
+        "article_selector": "article, .node, .views-row, div[class*='article'], .press-release",
+        "headline_selector": "h1, h2, h3, h4, a, .title",
+        "summary_selector": "p, .summary, .description",
+        "link_selector": "a[href*='/press-releases/']",
+        "date_selector": "time, .date, [class*='date']"
+      }
+    },
+    {
+      "name": "US Department of State - Middle East",
+      "url": "https://www.state.gov/bureaus-offices/under-secretary-for-political-affairs/bureau-of-near-eastern-affairs/",
+      "country": "USA",
+      "language": "English",
+      "category": "Government",
+      "type": "html",
+      "crawl_pattern": {
+        "article_selector": "article, .post, .news-item, div[class*='article']",
+        "headline_selector": "h1, h2, h3, h4, a, .title",
+        "summary_selector": "p, .summary, .description",
+        "link_selector": "a[href*='/near-eastern-affairs/']",
+        "date_selector": "time, .date, [class*='date']"
+      }
+    },
+    {
+      "name": "Federal Reserve Economic Data",
+      "url": "https://fred.stlouisfed.org/releases/calendar",
+      "country": "USA",
+      "language": "English",
+      "category": "Government",
+      "type": "html",
+      "crawl_pattern": {
+        "article_selector": ".release, .calendar-item, article, tr",
+        "headline_selector": "h1, h2, h3, h4, a, .title, .release-title",
+        "summary_selector": "p, .summary, .description",
+        "link_selector": "a[href*='/release']",
+        "date_selector": "time, .date, [class*='date']"
+      }
+    },
+    {
+      "name": "UAE Central Bank Publications",
+      "url": "https://www.centralbank.ae/en/publications-research",
+      "country": "UAE",
+      "language": "English",
+      "category": "Government",
+      "type": "html",
+      "crawl_pattern": {
+        "article_selector": ".publication-item, article, .card, div[class*='pub']",
+        "headline_selector": "h1, h2, h3, h4, a, .title",
+        "summary_selector": "p, .summary, .description",
+        "link_selector": "a[href*='/publication'], a[href*='/research']",
+        "date_selector": "time, .date, [class*='date']"
       }
     }
   ],
@@ -179,6 +325,12 @@
     "US companies in UAE",
     "UAE investors in US",
     "UAE-US partnership",
-    "US-UAE trade agreement"
+    "US-UAE trade agreement",
+    "Middle East economic policy",
+    "UAE industrial policy",
+    "US Middle East trade",
+    "UAE foreign investment",
+    "MENA economic trends",
+    "Federal Reserve UAE impact"
   ]
 } 

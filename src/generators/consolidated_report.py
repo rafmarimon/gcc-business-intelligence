@@ -75,13 +75,11 @@ class ConsolidatedReportGenerator:
         if not standalone_mode:
             try:
                 self.analyzer = GCCBusinessNewsAnalyzer(
-                    config_path='config/news_sources.json',
-                    model='gpt-4o'
+                    config_path='config/news_sources.json'
                 )
                 
                 self.linkedin_generator = LinkedInContentGenerator(
-                    config_path='config/linkedin_config.json',
-                    model='gpt-4o'
+                    config_path='config/linkedin_config.json'
                 )
             except Exception as e:
                 logger.error(f"Error initializing components: {e}")
@@ -109,10 +107,23 @@ class ConsolidatedReportGenerator:
         try:
             logger.info(f"Processing articles and generating report for {self.client_name}...")
             
-            # If articles are provided, analyze them
-            if articles and self.analyzer:
-                # Process articles to generate report content
-                report_text = self.analyzer.analyze_news(articles)
+            # If articles are provided, analyze them with the analyzer
+            if articles and len(articles) > 0 and self.analyzer:
+                news_articles = []
+                gov_data = []
+                
+                # Separate news articles from government data
+                for article in articles:
+                    # Check if it's from a government source or has government category
+                    if article.get('category') == 'Government' or 'gov_' in article.get('source', '').lower():
+                        gov_data.append(article)
+                    else:
+                        news_articles.append(article)
+                
+                logger.info(f"Processing {len(news_articles)} news articles and {len(gov_data)} government data items")
+                
+                # Process the news articles to generate a report
+                report_text = self.analyzer.analyze_news(news_articles, gov_data)
                 
                 # Generate LinkedIn posts if analyzer is available and LinkedIn is enabled
                 linkedin_posts = None
@@ -133,7 +144,7 @@ class ConsolidatedReportGenerator:
             return self.generate(report_text, linkedin_posts)
             
         except Exception as e:
-            logger.error(f"Error in generate_all: {e}")
+            logger.error(f"Error in generate_all: {e}", exc_info=True)
             return None, None, None
     
     def generate(self, report_text, linkedin_posts=None):
@@ -202,6 +213,19 @@ class ConsolidatedReportGenerator:
             
             # Generate the report file path
             report_path = os.path.join(self.reports_dir, f"consolidated_report_{timestamp}.md")
+            
+            # Ensure daily_report is a string
+            if isinstance(daily_report, dict):
+                # Convert dict to formatted string
+                report_str = "## GCC Business Intelligence Report\n\n"
+                for key, value in daily_report.items():
+                    if isinstance(value, dict):
+                        report_str += f"### {key}\n\n"
+                        for sub_key, sub_value in value.items():
+                            report_str += f"#### {sub_key}\n{sub_value}\n\n"
+                    else:
+                        report_str += f"### {key}\n{value}\n\n"
+                daily_report = report_str
             
             # Write the report
             with open(report_path, 'w', encoding='utf-8') as f:

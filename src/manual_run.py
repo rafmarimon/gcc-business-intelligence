@@ -12,6 +12,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import our modules
 from collectors.news_collector import GCCBusinessNewsCollector
+from collectors.government_data_collector import GovernmentDataCollector
 from processors.news_analyzer import GCCBusinessNewsAnalyzer
 from generators.linkedin_content import LinkedInContentGenerator
 from generators.consolidated_report import ConsolidatedReportGenerator
@@ -94,26 +95,52 @@ def run_collection(client_config, frequency="daily"):
     # Get client keywords
     keywords = client_config.get("keywords", [])
     
-    # Initialize the collector
-    collector = GCCBusinessNewsCollector()
+    # Initialize the collectors
+    news_collector = GCCBusinessNewsCollector()
+    gov_collector = GovernmentDataCollector()
+    
+    all_articles = []
     
     # Collect news with client-specific settings
     if keywords:
         logger.info(f"Focusing collection on {len(keywords)} keywords")
-        articles = collector.collect_news(
+        news_articles = news_collector.collect_news(
             days_back=days_back,
             limit_per_source=limit_per_source,
             focus_keywords=keywords
         )
+        
+        # Also collect government data (with longer timeframe for reports/documents)
+        gov_days_back = days_back * 3  # Government data has longer relevance
+        gov_data = gov_collector.collect_data(
+            days_back=gov_days_back,
+            limit_per_source=limit_per_source,
+            focus_keywords=keywords
+        )
+        
+        logger.info(f"Collected {len(news_articles)} news articles and {len(gov_data)} government data items")
+        
+        # Combine all sources
+        all_articles = news_articles + gov_data
     else:
-        articles = collector.collect_news(
+        # Collect without keyword filtering
+        news_articles = news_collector.collect_news(
             days_back=days_back,
             limit_per_source=limit_per_source
         )
+        
+        gov_days_back = days_back * 3
+        gov_data = gov_collector.collect_data(
+            days_back=gov_days_back,
+            limit_per_source=limit_per_source
+        )
+        
+        logger.info(f"Collected {len(news_articles)} news articles and {len(gov_data)} government data items")
+        all_articles = news_articles + gov_data
     
-    if articles:
-        logger.info(f"Successfully collected {len(articles)} articles.")
-        return articles
+    if all_articles:
+        logger.info(f"Successfully collected {len(all_articles)} total items.")
+        return all_articles
     else:
         logger.warning("No articles were collected.")
         return []

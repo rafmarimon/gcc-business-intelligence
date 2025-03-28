@@ -7,6 +7,7 @@ import pandas as pd
 from dotenv import load_dotenv
 import logging
 import re
+import urllib3
 
 # Load environment variables
 load_dotenv()
@@ -18,6 +19,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger("NewsCollector")
 
+# Suppress SSL verification warnings when necessary
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 class GCCBusinessNewsCollector:
     """
     Collects business news from UAE/GCC sources using requests and BeautifulSoup.
@@ -27,7 +31,12 @@ class GCCBusinessNewsCollector:
         self.config_path = config_path
         self.sources = self._load_sources()
         self.headers = {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Cache-Control': 'max-age=0'
         }
         
     def _load_sources(self):
@@ -35,10 +44,32 @@ class GCCBusinessNewsCollector:
         try:
             with open(self.config_path, 'r') as f:
                 config = json.load(f)
-                return config.get('sources', [])
+                sources_dict = {}
+                
+                # Handle different possible structures
+                if isinstance(config, dict) and 'sources' in config:
+                    # Convert list to dictionary with name as keys
+                    for source in config['sources']:
+                        if isinstance(source, dict) and 'name' in source:
+                            sources_dict[source['name']] = source
+                        else:
+                            # If no name, use index
+                            sources_dict[f"source_{len(sources_dict)}"] = source
+                    return sources_dict
+                elif isinstance(config, list):
+                    # Convert list to dictionary with indices as keys
+                    for idx, source in enumerate(config):
+                        if isinstance(source, dict) and 'name' in source:
+                            sources_dict[source['name']] = source
+                        else:
+                            sources_dict[f"source_{idx}"] = source
+                    return sources_dict
+                else:
+                    # Assume the config itself is a dictionary of sources
+                    return config
         except (FileNotFoundError, json.JSONDecodeError) as e:
             logger.error(f"Error loading sources: {e}")
-            return []
+            return {}
 
     def collect_news(self, days_back=1, limit_per_source=10, focus_keywords=None):
         """Collect business news from all configured sources.
@@ -67,7 +98,6 @@ class GCCBusinessNewsCollector:
                     # Get source config
                     url = source_config['url']
                     source_type = source_config.get('type', 'rss')
-                    selectors = source_config.get('selectors', {})
                     country = source_config.get('country', 'UAE')
                     category = source_config.get('category', 'Business')
                     
@@ -83,7 +113,8 @@ class GCCBusinessNewsCollector:
                     elif source_type == 'api':
                         source_articles = self._collect_from_api(url, source_name, country, category, days_back, limit_per_source)
                     elif source_type == 'html':
-                        source_articles = self._collect_from_html(url, source_name, country, category, selectors, days_back, limit_per_source)
+                        # Pass the entire source_config for HTML sources
+                        source_articles = self._collect_from_html(url, source_name, country, category, source_config, days_back, limit_per_source)
                     else:
                         logger.warning(f"Skipping {source_name} - unknown type: {source_type}")
                         continue
@@ -479,15 +510,23 @@ class GCCBusinessNewsCollector:
         try:
             logger.info(f"Scraping HTML from {url}...")
             
-            # Get the selectors
-            article_selector = selectors.get('article', 'article, .article, .news-item, .card')
-            title_selector = selectors.get('title', 'h1, h2, h3, .title, .headline')
-            link_selector = selectors.get('link', 'a')
-            summary_selector = selectors.get('summary', '.summary, .description, p')
-            date_selector = selectors.get('date', '.date, .time, time')
+            # Get the selectors - if selectors is a dictionary with crawl_pattern, use that
+            if isinstance(selectors, dict) and 'crawl_pattern' in selectors:
+                selectors = selectors['crawl_pattern']
             
-            # Fetch the page
-            response = requests.get(url, headers=self.headers, timeout=30)
+            # Use the appropriate selectors from crawl_pattern
+            article_selector = selectors.get('article_selector', 'article, .article, .news-item, .card')
+            title_selector = selectors.get('headline_selector', 'h1, h2, h3, .title, .headline')
+            link_selector = selectors.get('link_selector', 'a')
+            summary_selector = selectors.get('summary_selector', '.summary, .description, p')
+            date_selector = selectors.get('date_selector', '.date, .time, time')
+            
+            # Fetch the page with SSL verification disabled for problematic sites
+            try:
+                response = requests.get(url, headers=self.headers, timeout=30)
+            except requests.exceptions.SSLError:
+                logger.warning(f"SSL error for {url}, trying with verification disabled")
+                response = requests.get(url, headers=self.headers, timeout=30, verify=False)
             
             if response.status_code != 200:
                 logger.warning(f"Failed to fetch HTML: {response.status_code}")

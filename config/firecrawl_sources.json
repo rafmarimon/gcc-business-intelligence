@@ -1,0 +1,92 @@
+{
+  "sources": [
+    {
+      "name": "Gulf News Business",
+      "url": "https://gulfnews.com/business",
+      "selectors": {
+        "article_links": "a.teaser-title",
+        "title": "h1.article-headline",
+        "content": "div.article-body",
+        "date": "div.article-meta [data-article-publish-date]",
+        "author": "div.article-meta [data-article-author]"
+      }
+    },
+    {
+      "name": "Khaleej Times Business",
+      "url": "https://www.khaleejtimes.com/business",
+      "selectors": {
+        "article_links": "a.story-card",
+        "title": "h1.article-title",
+        "content": "div.article-body",
+        "date": "div.publish-date",
+        "author": "div.article-author"
+      }
+    },
+    {
+      "name": "The National Business",
+      "url": "https://www.thenationalnews.com/business/",
+      "selectors": {
+        "article_links": "a.card-link",
+        "title": "h1.headline__title",
+        "content": "div.article-body__content",
+        "date": "div.headline__publishdate",
+        "author": "div.article-author__name"
+      }
+    },
+    {
+      "name": "Arabian Business",
+      "url": "https://www.arabianbusiness.com/industries",
+      "selectors": {
+        "article_links": "a.article-card",
+        "title": "h1.article-title",
+        "content": "div.article-content",
+        "date": "time.article-date",
+        "author": "span.article-author"
+      }
+    },
+    {
+      "name": "Emirates News Agency",
+      "url": "https://wam.ae/en/economy",
+      "selectors": {
+        "article_links": "a.news-card",
+        "title": "h1.news-title",
+        "content": "div.news-content",
+        "date": "div.news-date",
+        "author": "div.news-author"
+      }
+    },
+    {
+      "name": "Zawya UAE",
+      "url": "https://www.zawya.com/uae/en/business/",
+      "selectors": {
+        "article_links": "a.article-card-link",
+        "title": "h1.article__heading",
+        "content": "div.article__content",
+        "date": "time.article__date",
+        "author": "div.article__author"
+      }
+    },
+    {
+      "name": "Dubai Chamber News",
+      "url": "https://www.dubaichamber.com/news",
+      "selectors": {
+        "article_links": "a.news-link",
+        "title": "h1.news-title",
+        "content": "div.news-content",
+        "date": "div.news-date",
+        "author": "div.news-source"
+      }
+    },
+    {
+      "name": "UAE Government News",
+      "url": "https://u.ae/en/information-and-services/business",
+      "selectors": {
+        "article_links": "a.news-item",
+        "title": "h1.page-title",
+        "content": "div.content-body",
+        "date": "div.page-date",
+        "author": "div.page-author"
+      }
+    }
+  ]
+} 

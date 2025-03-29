@@ -35,68 +35,53 @@ logger.info("Environment variables loaded")
 def run_api_server():
     """Run the API server with proper error handling and reporting."""
     try:
-        # Step-by-step imports to isolate the error
-        logger.info("Step 1: Checking if src directory exists")
+        # Add more detailed path inspection for debugging
+        logger.info(f"Current working directory: {os.getcwd()}")
         src_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src')
-        if os.path.exists(src_dir) and os.path.isdir(src_dir):
-            logger.info(f"src directory found at {src_dir}")
-            # List files in the directory
-            files = os.listdir(src_dir)
-            logger.info(f"Files in src directory: {files}")
-        else:
-            logger.error(f"src directory not found at {src_dir}")
-            raise ImportError("src directory not found")
-        
-        logger.info("Step 2: Checking if api_server.py exists")
-        api_server_path = os.path.join(src_dir, 'api_server.py')
-        if os.path.exists(api_server_path):
-            logger.info(f"api_server.py found at {api_server_path}")
-        else:
-            logger.error(f"api_server.py not found at {api_server_path}")
-            raise ImportError("api_server.py not found")
-        
-        logger.info("Step 3: Attempting to import src package")
+        logger.info(f"src directory: {src_dir}")
+
+        # Forcibly add src directory to sys.path for reliable imports
+        if src_dir not in sys.path:
+            sys.path.insert(0, src_dir)
+            logger.info(f"Added {src_dir} to sys.path for reliable imports")
+
+        # Directly try to import api_server and get the app
         try:
-            import src
-            logger.info("Successfully imported src package")
-        except ImportError as e:
-            logger.error(f"Error importing src package: {e}")
+            # Import using importlib for better error handling
+            import importlib.util
+            api_server_path = os.path.join(src_dir, 'api_server.py')
+            
+            if not os.path.exists(api_server_path):
+                logger.error(f"api_server.py not found at {api_server_path}")
+                raise ImportError(f"api_server.py not found at {api_server_path}")
+                
+            logger.info(f"Loading api_server from {api_server_path}")
+            
+            spec = importlib.util.spec_from_file_location("api_server", api_server_path)
+            if not spec:
+                logger.error("Failed to create spec from file location")
+                raise ImportError("Failed to create spec from file location")
+                
+            api_server = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(api_server)
+            
+            if not hasattr(api_server, 'app'):
+                logger.error("app not found in api_server module")
+                raise ImportError("app not found in api_server module")
+                
+            app = api_server.app
+            logger.info("Successfully loaded Flask app from api_server.py")
+            
+        except ImportError as ie:
+            logger.error(f"ImportError: {ie}")
             logger.error(traceback.format_exc())
-            raise
-        
-        logger.info("Step 4: Attempting to import src.api_server module")
-        try:
-            import src.api_server
-            logger.info("Successfully imported src.api_server module")
-        except ImportError as e:
-            logger.error(f"Error importing src.api_server module: {e}")
+            print(f"Error importing api_server. Make sure paths are correct. See {log_file} for details.")
+            sys.exit(1)
+        except Exception as e:
+            logger.error(f"Unexpected error loading api_server: {e}")
             logger.error(traceback.format_exc())
-            # Try to import manually
-            logger.info("Attempting manual import using exec")
-            try:
-                api_server_code = open(api_server_path, 'r').read()
-                namespace = {}
-                exec(api_server_code, namespace)
-                logger.info(f"Manual import succeeded. Keys: {list(namespace.keys())}")
-                if 'app' in namespace:
-                    app = namespace['app']
-                    logger.info("Found app in manual import")
-                else:
-                    logger.error("app not found in manual import")
-                    raise ImportError("app not found in manual import")
-            except Exception as ex:
-                logger.error(f"Manual import failed: {ex}")
-                logger.error(traceback.format_exc())
-                raise
-        
-        logger.info("Step 5: Checking for app in src.api_server")
-        if hasattr(src.api_server, 'app'):
-            app = src.api_server.app
-            logger.info("Successfully retrieved app from src.api_server")
-        else:
-            logger.error("app not found in src.api_server")
-            logger.error(f"Available attributes: {dir(src.api_server)}")
-            raise ImportError("app not found in src.api_server")
+            print(f"Unexpected error loading api_server. See {log_file} for details.")
+            sys.exit(1)
         
         # Set the port
         port = int(os.environ.get('PORT', 8080))

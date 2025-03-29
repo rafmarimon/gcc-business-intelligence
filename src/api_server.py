@@ -45,6 +45,15 @@ except ImportError:
     ml_integration = None
     MLReportIntegration = None
 
+# Import our custom report bridge
+try:
+    from src.report_bridge import generate_report as bridge_generate_report, list_reports as bridge_list_reports
+    has_report_bridge = True
+    logger.info("Report Bridge loaded successfully")
+except ImportError:
+    logger.warning("Could not import Report Bridge - falling back to manual_run.py")
+    has_report_bridge = False
+
 app = Flask(__name__, 
     static_folder='../reports',
     template_folder='templates'
@@ -70,6 +79,12 @@ def list_reports():
         client = request.args.get('client', 'general')
         frequency = request.args.get('frequency', 'daily')
         
+        # Use the bridge if available
+        if has_report_bridge:
+            reports = bridge_list_reports(client, frequency, limit=10)
+            return jsonify({"reports": reports})
+        
+        # Original implementation (fallback)
         # Create the path for the specified client and frequency
         client_dir = client.lower().replace(" ", "_")
         reports_base_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'reports')
@@ -157,7 +172,7 @@ def list_reports():
 
 @app.route('/api/generate-report', methods=['POST'])
 def generate_report():
-    """Generate a new report using the manual_run.py script"""
+    """Generate a new report using the simplified report generator"""
     try:
         data = request.json
         report_type = data.get('report_type', 'daily')
@@ -189,6 +204,26 @@ def generate_report():
                 "message": f"Invalid client. Must be one of: {', '.join(valid_clients)}"
             }), 400
         
+        # Use the bridge if available
+        if has_report_bridge:
+            # Run in a separate thread to avoid blocking
+            def run_with_bridge():
+                try:
+                    result = bridge_generate_report(client, report_type, skip_collection=not collect_news)
+                    logger.info(f"Report generation with bridge: {result['success']}")
+                except Exception as e:
+                    logger.error(f"Error in report generation thread: {str(e)}")
+            
+            thread = threading.Thread(target=run_with_bridge)
+            thread.daemon = True
+            thread.start()
+            
+            return jsonify({
+                "success": True,
+                "message": "Report generation started. Refresh the page in a moment to see your new report."
+            })
+        
+        # Original implementation (fallback)
         # Prepare command arguments
         cmd_args = ['python', 'src/manual_run.py', '--no-browser']
         
@@ -250,11 +285,11 @@ def generate_report():
         
         return jsonify({
             "success": True,
-            "message": f"Report generation started for client: {client}, type: {report_type}. This will take a few minutes."
+            "message": "Report generation started. Refresh the page in a moment to see your new report."
         })
-    
+        
     except Exception as e:
-        logger.error(f"Error triggering report generation: {str(e)}")
+        logger.error(f"Error starting report generation: {str(e)}")
         return jsonify({
             "success": False,
             "message": f"Error: {str(e)}"

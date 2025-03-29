@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  # Base connector images that can be extended
+  connector-base-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.connector
+      target: development
+    image: gcc-connector-base:development
+    networks:
+      - gcc_net
+  
+  connector-base-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile.connector
+      target: production
+    image: gcc-connector-base:production
+    networks:
+      - gcc_net
+  
+  # Python CDK-based connector for complex sources
+  gcc-web-scraper-connector:
+    build:
+      context: ./connectors/python-cdk/gcc_web_scraper
+      dockerfile: Dockerfile
+      target: prod  # Use 'dev' for development environment
+    image: gcc-web-scraper-connector:latest
+    environment:
+      - AIRBYTE_ROLE=source
+      - CRAWL4AI_API_KEY=${CRAWL4AI_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - ./cache:/tmp/cache
+    networks:
+      - gcc_net
+  
+  # Adapter services for Low-Code connectors
+  text-processing-service:
+    build:
+      context: ./adapter-services/text-processing
+      dockerfile: Dockerfile
+    image: gcc-text-processing-service:latest
+    ports:
+      - "127.0.0.1:8090:8090"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    networks:
+      - gcc_net
+  
+  auth-service:
+    build:
+      context: ./adapter-services/auth
+      dockerfile: Dockerfile
+    image: gcc-auth-service:latest
+    ports:
+      - "127.0.0.1:8091:8091"
+    environment:
+      - CLIENT_ID=${GCC_API_CLIENT_ID}
+      - CLIENT_SECRET=${GCC_API_CLIENT_SECRET}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+    networks:
+      - gcc_net
+  
+  # Redis for token caching
+  redis:
+    image: redis:7.2-alpine
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - gcc_net
+
+networks:
+  gcc_net:
+    external: true
+
+volumes:
+  redis-data: 

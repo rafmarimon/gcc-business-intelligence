@@ -1,0 +1,34 @@
+FROM python:3.11-slim as base
+
+WORKDIR /connector
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create a development image with all dev dependencies
+FROM base as development
+
+# Copy dev requirements
+COPY dev-requirements.txt .
+
+# Install Python dependencies with strict versions
+RUN pip install --no-cache-dir -r dev-requirements.txt
+
+# Production image with only runtime dependencies
+FROM base as production
+
+# Copy only the production requirements
+COPY requirements.txt .
+
+# Install production dependencies only
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+# Default command just shows the help message
+CMD ["echo", "This is a base Docker image for Airbyte connectors. Please extend it for specific connectors."] 

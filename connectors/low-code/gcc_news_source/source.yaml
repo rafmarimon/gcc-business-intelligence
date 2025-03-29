@@ -1,0 +1,41 @@
+version: "0.51.0"
+definitions:
+  selector:
+    extractor:
+      field_path: ["data", "articles"]
+  requester:
+    url_base: "https://example.com/gcc/api/news"
+    http_method: "GET"
+    authenticator:
+      type: "CustomAuthenticator"
+      class_name: "auth_service"
+      url: "http://auth-service:8091/get-token"
+  retriever:
+    record_selector:
+      $ref: "#/definitions/selector"
+    paginator:
+      type: "DefaultPaginator"
+      page_size_option:
+        inject_into: "request_parameter"
+        field_name: "pageSize"
+      page_token_option:
+        inject_into: "request_parameter"
+        field_name: "page"
+      pagination_strategy:
+        type: "PageIncrement"
+        page_size: 50
+      url_base: "https://example.com/gcc/api/news"
+  transformer:
+    type: "RemoteTransformer"
+    url: "http://text-processing-service:8090/transform"
+    method: "POST"
+streams:
+  - name: "articles"
+    primary_key: ["id"]
+    retriever:
+      $ref: "#/definitions/retriever"
+    transformations:
+      - type: "RemoteTransform"
+        url: "http://text-processing-service:8090/enrich"
+check:
+  stream_names: ["articles"] 

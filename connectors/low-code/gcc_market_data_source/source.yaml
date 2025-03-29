@@ -1,0 +1,78 @@
+version: "0.51.0"
+
+definitions:
+  selector:
+    extractor:
+      field_path: ["data"]
+  
+  requester:
+    url_base: "https://example.com/gcc/api/market-data"
+    http_method: "GET"
+    authenticator:
+      type: "CustomAuthenticator"
+      class_name: "auth_service"
+      url: "http://auth-service:8091/get-token"
+  
+  retriever:
+    record_selector:
+      $ref: "#/definitions/selector"
+    paginator:
+      type: "DefaultPaginator"
+      page_size_option:
+        inject_into: "request_parameter"
+        field_name: "limit"
+      page_token_option:
+        inject_into: "request_parameter"
+        field_name: "offset"
+      pagination_strategy:
+        type: "OffsetIncrement"
+        page_size: 25
+      url_base: "https://example.com/gcc/api/market-data"
+  
+  transformer:
+    type: "RemoteTransformer"
+    url: "http://text-processing-service:8090/transform"
+    method: "POST"
+  
+  # Request base parameters
+  base_params:
+    type: "InterpolatedRequestOptionsProvider"
+    request_parameters:
+      format: "json"
+      region: "gcc"
+
+streams:
+  - name: "stock_indices"
+    $parameters:
+      path: "/indices"
+      primary_key: "symbol"
+    primary_key: ["symbol"]
+    retriever:
+      $ref: "#/definitions/retriever"
+      requester:
+        $ref: "#/definitions/requester"
+        path: "/indices"
+        request_options_provider:
+          $ref: "#/definitions/base_params"
+    transformations:
+      - type: "RemoteTransform"
+        url: "http://text-processing-service:8090/enrich"
+  
+  - name: "currency_exchange"
+    $parameters:
+      path: "/forex"
+      primary_key: "pair"
+    primary_key: ["pair"]
+    retriever:
+      $ref: "#/definitions/retriever"
+      requester:
+        $ref: "#/definitions/requester"
+        path: "/forex"
+        request_options_provider:
+          $ref: "#/definitions/base_params"
+    transformations:
+      - type: "RemoteTransform"
+        url: "http://text-processing-service:8090/enrich"
+
+check:
+  stream_names: ["stock_indices", "currency_exchange"] 

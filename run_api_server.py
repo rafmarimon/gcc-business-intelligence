@@ -7,6 +7,8 @@ import logging
 import traceback
 from datetime import datetime
 from dotenv import load_dotenv
+import socket
+import errno
 
 # Configure detailed logging to file
 log_file = f"api_server_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
@@ -83,16 +85,42 @@ def run_api_server():
             print(f"Unexpected error loading api_server. See {log_file} for details.")
             sys.exit(1)
         
-        # Set the port
-        port = int(os.environ.get('PORT', 8080))
+        # Use port 3000 by default (less likely to conflict on macOS)
+        default_port = 3000
+        # Try to get port from environment variable first
+        port = int(os.environ.get('PORT', default_port))
         
         # Log the configuration
         logger.info(f"Running the API server on port {port}")
         logger.info(f"OpenAI API key: {'Configured' if os.getenv('OPENAI_API_KEY') else 'Missing'}")
         logger.info(f"Debug mode: {os.getenv('DEBUG', 'False')}")
         
-        # Run the app
-        app.run(host='0.0.0.0', port=port, debug=(os.getenv('DEBUG', 'False').lower() == 'true'))
+        # Auto retry with alternative ports if specified port is in use
+        max_retries = 5  # Try more ports
+        current_port = port
+        
+        for retry in range(max_retries + 1):
+            try:
+                # Run the app
+                logger.info(f"Attempting to start server on port {current_port} (attempt {retry + 1}/{max_retries + 1})")
+                app.run(host='0.0.0.0', port=current_port, debug=(os.getenv('DEBUG', 'False').lower() == 'true'))
+                break  # If successful, break the loop
+            except socket.error as e:
+                # Only retry if the error is "address already in use"
+                if e.errno == errno.EADDRINUSE:
+                    if retry < max_retries:
+                        logger.warning(f"Port {current_port} is already in use. Trying alternative port.")
+                        current_port = current_port + 1  # Try next port
+                    else:
+                        logger.error(f"All ports from {port} to {current_port} are in use.")
+                        print(f"ERROR: Could not find an available port. Tried ports {port} to {current_port}.")
+                        print("Either free one of these ports or specify a different port using the PORT environment variable.")
+                        print("On macOS, AirPlay Receiver commonly uses port 5000. You can disable it in System Preferences.")
+                        sys.exit(1)
+                else:
+                    # For other socket errors, don't retry
+                    logger.error(f"Socket error: {e}")
+                    raise
         
     except ImportError as e:
         logger.error(f"ImportError: {e}")

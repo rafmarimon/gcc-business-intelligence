@@ -627,7 +627,8 @@ def list_report_types():
     return jsonify({"report_types": report_types})
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
+    # Use the same default port as run_api_server.py (3000)
+    port = int(os.environ.get('PORT', 3000))
     is_production = os.environ.get('ENVIRONMENT', '').lower() == 'production'
     
     logger.info(f"Starting API server on port {port} in {'production' if is_production else 'development'} mode")

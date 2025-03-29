@@ -147,12 +147,28 @@ class ReportBridge:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
         try:
-            client_dir = os.path.join(self.reports_dir, client.lower().replace(" ", "_"), frequency)
+            # Normalize client name and frequency
+            client = client.lower().strip().replace(" ", "_")
+            frequency = frequency.lower().strip()
+            
+            # Ensure client directory exists
+            client_dir = os.path.join(self.reports_dir, client, frequency)
             os.makedirs(client_dir, exist_ok=True)
+            
+            # Normalize paths
+            client_dir = os.path.normpath(client_dir)
             
             # Process each report type
             for report_type, original_path in report_paths.items():
-                if not original_path or not os.path.exists(original_path):
+                if not original_path:
+                    continue
+                
+                # Normalize the original path
+                original_path = os.path.normpath(original_path)
+                
+                # Skip if file doesn't exist
+                if not os.path.exists(original_path):
+                    logger.warning(f"Original file does not exist: {original_path}")
                     continue
                 
                 # Define new filename with consolidated_ prefix
@@ -160,13 +176,27 @@ class ReportBridge:
                 new_filename = f"consolidated_report_{timestamp}{extension}"
                 new_path = os.path.join(client_dir, new_filename)
                 
-                # Copy the file to the new location
-                import shutil
-                shutil.copy2(original_path, new_path)
-                logger.info(f"Copied {original_path} to {new_path}")
+                # Normalize the new path
+                new_path = os.path.normpath(new_path)
                 
-                # Store the new path
-                renamed_paths[report_type] = new_path
+                # Check if source and destination are the same
+                if os.path.abspath(original_path) == os.path.abspath(new_path):
+                    logger.warning(f"Source and destination are the same file: {original_path}")
+                    renamed_paths[report_type] = new_path
+                    continue
+                
+                # Copy the file to the new location
+                try:
+                    import shutil
+                    shutil.copy2(original_path, new_path)
+                    logger.info(f"Copied {original_path} to {new_path}")
+                    
+                    # Store the new path
+                    renamed_paths[report_type] = new_path
+                except Exception as copy_error:
+                    logger.error(f"Error copying {original_path} to {new_path}: {copy_error}")
+                    # Fall back to using the original path
+                    renamed_paths[report_type] = original_path
             
             return renamed_paths
             

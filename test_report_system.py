@@ -87,7 +87,7 @@ def test_bridge_integration():
 
 def test_api_server_startup():
     """Test if the API server can start."""
-    logger.info("Testing API server startup (will exit after 5 seconds)...")
+    logger.info("Testing API server startup (will exit after successful detection)...")
     
     # Start the API server in a subprocess
     # Force a high port number (9000-9005) that's less likely to be in use
@@ -95,7 +95,7 @@ def test_api_server_startup():
     cmd = [sys.executable, "run_api_server.py"]
     
     try:
-        # Start the server with a 10-second timeout
+        # Start the server process
         process = subprocess.Popen(
             cmd, 
             stdout=subprocess.PIPE, 
@@ -104,39 +104,83 @@ def test_api_server_startup():
             env=os.environ  # Pass current environment with PORT set
         )
         
-        # Wait for a few seconds to see if the server starts
-        time.sleep(8)  # Give it more time to start
+        # Wait for the server to start - up to 15 seconds
+        max_wait = 15  # seconds
+        start_time = time.time()
+        server_started = False
         
-        # Check if the process is still running
-        if process.poll() is None:
-            # Check the output to see which port it's using
-            stdout, stderr = process.communicate(timeout=2)
-            # If we got here, the server is running!
-            logger.info("✅ API server started successfully!")
-            logger.info(f"API server output: {stdout[:200]}...")
+        while time.time() - start_time < max_wait:
+            if process.poll() is not None:
+                # Process exited early
+                stdout, stderr = process.communicate()
+                
+                # Check if it started successfully before exiting
+                if "Running on" in stdout or "Running on" in stderr:
+                    logger.info("✅ API server started successfully but exited!")
+                    return True
+                    
+                logger.error("❌ API server failed to start and exited!")
+                logger.error(f"Stdout: {stdout}")
+                logger.error(f"Stderr: {stderr}")
+                return False
+            
+            # Check if server is responding by reading partial output
+            try:
+                # Use select to check if there's any output to read
+                import select
+                readable, _, _ = select.select([process.stdout, process.stderr], [], [], 0.1)
+                
+                partial_output = ""
+                for stream in readable:
+                    # Read available output without blocking
+                    line = stream.readline()
+                    partial_output += line
+                
+                if "Running on" in partial_output:
+                    logger.info("✅ API server started successfully!")
+                    logger.info(f"Port detected in output: {partial_output}")
+                    server_started = True
+                    break
+                    
+            except Exception as e:
+                logger.debug(f"Error checking server output: {e}")
+                
+            # Short sleep to reduce CPU usage
+            time.sleep(0.5)
+        
+        # Final check - if we got here and server_started is True, consider it successful
+        if server_started:
             # Terminate the server
             process.terminate()
-            process.wait(timeout=3)
+            try:
+                process.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                process.kill()
             return True
-        else:
-            # Process exited, check the output
-            stdout, stderr = process.communicate()
             
-            # Look for successful server start message
-            if "Running on" in stdout or "Running on" in stderr:
-                logger.info("✅ API server started successfully but exited!")
-                return True
-                
-            logger.error("❌ API server failed to start!")
+        # If we get here, the server didn't start in time
+        logger.error("❌ API server failed to start within timeout period!")
+        # Capture any output we have
+        try:
+            stdout, stderr = process.communicate(timeout=1)
             logger.error(f"Stdout: {stdout}")
             logger.error(f"Stderr: {stderr}")
-            return False
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.communicate()
+            
+        return False
             
     except Exception as e:
         logger.error(f"❌ API server test failed with an exception: {e}")
         # Make sure to terminate the process if it's still running
         try:
-            process.terminate()
+            if process.poll() is None:
+                process.terminate()
+                try:
+                    process.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    process.kill()
         except:
             pass
         return False

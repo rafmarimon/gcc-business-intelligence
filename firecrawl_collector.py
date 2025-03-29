@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+
+
 # -*- coding: utf-8 -*-
 
 import os
@@ -11,14 +13,26 @@ import requests
 from datetime import datetime
 from dotenv import load_dotenv
 from urllib.parse import urlparse
+from pathlib import Path
 
 # Add the project root to the path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+# Import the robust API utilities
+try:
+    from src.utils.api_utils import robust_api_request, make_api_request
+    API_UTILS_AVAILABLE = True
+except ImportError:
+    API_UTILS_AVAILABLE = False
+    # We'll fall back to the built-in _make_api_request method
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler()
+    ]
 )
 logger = logging.getLogger("firecrawl_collector")
 
@@ -33,14 +47,14 @@ class FirecrawlNewsCollector:
     
     def __init__(self, api_key=None, config_file=None):
         """Initialize the Firecrawl news collector."""
-        self.api_key = api_key or os.getenv("FIRECRAWL_API_KEY")
-        self.base_url = "https://api.firecrawl.dev/v1"
-        
-        # Setup logger
         self.logger = logging.getLogger("firecrawl_collector")
         
+        # Set API key
+        self.api_key = api_key or os.environ.get('FIRECRAWL_API_KEY')
+        self.base_url = "https://api.firecrawl.dev/v1"
+        
         if not self.api_key:
-            self.logger.warning("No Firecrawl API key provided. Please set it via FIRECRAWL_API_KEY environment variable or pass it to the constructor.")
+            self.logger.warning("No Firecrawl API key provided. Set FIRECRAWL_API_KEY env var or pass api_key.")
         
         # Load configuration
         self.config_file = config_file or "config/news_sources.json"
@@ -49,6 +63,13 @@ class FirecrawlNewsCollector:
         # Set up data directories
         self.data_dir = "data/news"
         os.makedirs(self.data_dir, exist_ok=True)
+        
+        # Initialize cache structures if API utils not available
+        if not API_UTILS_AVAILABLE:
+            self._response_cache = {}
+            self._cache_times = {}
+        
+        self.logger.info(f"FirecrawlNewsCollector initialized with {len(self.sources)} sources")
     
     def _load_sources(self):
         """Load news sources from configuration file."""
@@ -62,37 +83,161 @@ class FirecrawlNewsCollector:
             self.logger.error(f"Error loading sources from {self.config_file}: {str(e)}")
             return []
     
-    def _make_api_request(self, endpoint, payload):
-        """
-        Make a request to the Firecrawl API
-        
-        Args:
-            endpoint (str): API endpoint to call
-            payload (dict): Request payload
+    # If API utils are available, use the decorator version
+    if API_UTILS_AVAILABLE:
+        @robust_api_request(service_name="firecrawl", max_retries=3, cache_ttl=600)
+        def _make_api_request(self, endpoint, payload):
+            """
+            Make a request to the Firecrawl API using the robust API utils
             
-        Returns:
-            dict: API response JSON
-        """
-        try:
+            Args:
+                endpoint (str): API endpoint to call
+                payload (dict): Request payload
+                
+            Returns:
+                dict: API response JSON
+            """
             url = f"{self.base_url}/{endpoint}"
             headers = {
                 "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json"
             }
             
-            response = requests.post(url, json=payload, headers=headers)
-            response.raise_for_status()
+            # Use the general-purpose API request function
+            return make_api_request(url, method='post', data=payload, headers=headers, timeout=30)
+    
+    # Original implementation with retries and caching as fallback
+    else:
+        def _make_api_request(self, endpoint, payload, max_retries=3, cache_ttl=600):
+            """
+            Make a request to the Firecrawl API with retry logic and caching
             
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            self.logger.error(f"API request error for {endpoint}: {e}")
-            if hasattr(e, 'response') and e.response is not None:
+            Args:
+                endpoint (str): API endpoint to call
+                payload (dict): Request payload
+                max_retries (int): Maximum number of retry attempts
+                cache_ttl (int): Cache time-to-live in seconds (0 to disable)
+                
+            Returns:
+                dict: API response JSON
+            """
+            # Generate a cache key based on endpoint and payload
+            if hasattr(self, '_response_cache') and cache_ttl > 0:
+                import hashlib
+                import json
+                import time
+                
+                # Initialize cache if it doesn't exist
+                if not hasattr(self, '_response_cache'):
+                    self._response_cache = {}
+                    self._cache_times = {}
+                
+                # Create a cache key from the endpoint and payload
+                cache_key = f"{endpoint}:{hashlib.md5(json.dumps(payload, sort_keys=True).encode()).hexdigest()}"
+                
+                # Check if we have a cached response that's still valid
+                if cache_key in self._response_cache:
+                    cache_time = self._cache_times.get(cache_key, 0)
+                    if time.time() - cache_time < cache_ttl:
+                        self.logger.debug(f"Using cached response for {endpoint}")
+                        return self._response_cache[cache_key]
+            
+            url = f"{self.base_url}/{endpoint}"
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            # Implement exponential backoff for retries
+            import time
+            import random
+            
+            retry_count = 0
+            last_exception = None
+            
+            while retry_count <= max_retries:
                 try:
-                    error_json = e.response.json()
-                    self.logger.error(f"API error response: {error_json}")
-                except:
-                    self.logger.error(f"API error status code: {e.response.status_code}")
-            return {"error": str(e), "data": {}}
+                    if retry_count > 0:
+                        # Calculate exponential backoff with jitter
+                        backoff = (2 ** retry_count) + random.uniform(0, 1)
+                        self.logger.info(f"Retrying request to {endpoint} in {backoff:.2f} seconds (attempt {retry_count}/{max_retries})")
+                        time.sleep(backoff)
+                    
+                    # Log request details at debug level
+                    self.logger.debug(f"Making API request to {url}")
+                    
+                    # Make the request
+                    response = requests.post(url, json=payload, headers=headers, timeout=30)
+                    
+                    # Raise exception for HTTP errors
+                    response.raise_for_status()
+                    
+                    # Parse and return the JSON response
+                    result = response.json()
+                    
+                    # Cache the successful response if caching is enabled
+                    if hasattr(self, '_response_cache') and cache_ttl > 0:
+                        self._response_cache[cache_key] = result
+                        self._cache_times[cache_key] = time.time()
+                        # Prune old cache entries
+                        self._prune_cache(cache_ttl)
+                    
+                    return result
+                    
+                except requests.exceptions.Timeout:
+                    self.logger.warning(f"Timeout error for {endpoint} (attempt {retry_count+1}/{max_retries+1})")
+                    last_exception = "Request timed out"
+                    retry_count += 1
+                    
+                except requests.exceptions.ConnectionError:
+                    self.logger.warning(f"Connection error for {endpoint} (attempt {retry_count+1}/{max_retries+1})")
+                    last_exception = "Connection error"
+                    retry_count += 1
+                    
+                except requests.exceptions.HTTPError as e:
+                    status_code = e.response.status_code if hasattr(e, 'response') else "unknown"
+                    self.logger.warning(f"HTTP error {status_code} for {endpoint} (attempt {retry_count+1}/{max_retries+1})")
+                    
+                    # Don't retry client errors (4xx) except for 429 (Too Many Requests)
+                    if hasattr(e, 'response') and 400 <= e.response.status_code < 500 and e.response.status_code != 429:
+                        try:
+                            error_details = e.response.json()
+                            self.logger.error(f"API client error ({status_code}): {error_details}")
+                        except:
+                            self.logger.error(f"API client error ({status_code}): {str(e)}")
+                        return {"error": f"Client error: {status_code}", "status_code": status_code, "data": {}}
+                    
+                    # For 429 or 5xx errors, retry
+                    last_exception = f"HTTP error: {status_code}"
+                    retry_count += 1
+                    
+                except Exception as e:
+                    self.logger.error(f"Unexpected error for {endpoint}: {str(e)}")
+                    last_exception = str(e)
+                    retry_count += 1
+            
+            # If we get here, all retries failed
+            self.logger.error(f"API request to {endpoint} failed after {max_retries + 1} attempts: {last_exception}")
+            return {"error": last_exception, "data": {}}
+        
+        def _prune_cache(self, ttl):
+            """Remove expired items from the cache"""
+            if hasattr(self, '_response_cache') and hasattr(self, '_cache_times'):
+                import time
+                import random
+                current_time = time.time()
+                expired_keys = [k for k, t in self._cache_times.items() if current_time - t > ttl]
+                
+                for key in expired_keys:
+                    if key in self._response_cache:
+                        del self._response_cache[key]
+                    if key in self._cache_times:
+                        del self._cache_times[key]
+                
+                # Log cache stats occasionally
+                if expired_keys and random.random() < 0.1:  # 10% chance to log
+                    self.logger.debug(f"Pruned {len(expired_keys)} expired items from cache. " +
+                                    f"Cache size: {len(self._response_cache)} items")
     
     def collect_news(self, keywords=None):
         """

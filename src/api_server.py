@@ -12,6 +12,11 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import re
 import base64
+import time
+from functools import wraps
+from src.generators.linkedin_content import LinkedInContentGenerator
+from src.utils.openai_utils import OpenAIClient
+from src.utils.redis_cache import get_cache
 
 # Configure logging
 logging.basicConfig(
@@ -81,6 +86,86 @@ reports_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 forecasts_dir = os.path.join(os.path.expanduser("~"), "gp_reports", "forecasts")
 os.makedirs(reports_dir, exist_ok=True)
 os.makedirs(forecasts_dir, exist_ok=True)
+
+# Initialize Redis cache
+cache = get_cache()
+
+# Setup rate limiting based on Redis
+def get_rate_limit_remaining(ip, endpoint, limit, window_seconds=60):
+    """
+    Get remaining rate limit for an IP and endpoint
+    
+    Args:
+        ip: The IP address
+        endpoint: The API endpoint
+        limit: Maximum requests allowed in the window
+        window_seconds: Time window in seconds
+        
+    Returns:
+        int: Number of requests remaining
+    """
+    window_key = int(time.time() / window_seconds)
+    rate_key = f"rate_limit:{window_key}:{ip}:{endpoint}"
+    
+    # Get current count
+    current = cache.get(rate_key) or 0
+    remaining = max(0, limit - current)
+    
+    return remaining
+
+def increment_rate_limit(ip, endpoint, window_seconds=60):
+    """
+    Increment rate limit counter for an IP and endpoint
+    
+    Args:
+        ip: The IP address
+        endpoint: The API endpoint
+        window_seconds: Time window in seconds
+        
+    Returns:
+        int: New count
+    """
+    window_key = int(time.time() / window_seconds)
+    rate_key = f"rate_limit:{window_key}:{ip}:{endpoint}"
+    
+    # Increment counter
+    new_count = cache.increment(rate_key, 1)
+    
+    # Set expiry
+    if cache.redis_enabled and cache.connected:
+        cache.redis.expire(rate_key, window_seconds * 2)
+    
+    return new_count
+
+# Create a rate limiter middleware
+def rate_limit(limit, window_seconds=60):
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            endpoint = request.path
+            ip = request.remote_addr
+            
+            # Check rate limit
+            remaining = get_rate_limit_remaining(ip, endpoint, limit, window_seconds)
+            
+            if remaining <= 0:
+                return jsonify({
+                    "error": "Rate limit exceeded",
+                    "message": f"Too many requests. Try again in {window_seconds} seconds."
+                }), 429
+            
+            # Increment counter
+            increment_rate_limit(ip, endpoint, window_seconds)
+            
+            # Add rate limit headers
+            response = make_response(f(*args, **kwargs))
+            response.headers['X-RateLimit-Limit'] = str(limit)
+            response.headers['X-RateLimit-Remaining'] = str(remaining - 1)
+            response.headers['X-RateLimit-Reset'] = str(int(time.time() + window_seconds))
+            
+            return response
+        return decorated_function
+    return decorator
 
 @app.route('/')
 def index():
@@ -864,9 +949,10 @@ def serve_static(filename):
     """Serve static files from the templates directory"""
     return send_from_directory('templates', filename)
 
-@app.route('/api/linkedin/posts')
-def list_linkedin_posts():
-    """List available LinkedIn posts with pagination"""
+@app.route('/api/linkedin/posts', methods=['GET'])
+@rate_limit(20, 60)  # 20 requests per minute
+def get_linkedin_posts():
+    """Get all LinkedIn posts or generate new ones."""
     try:
         # Get query parameters for filtering
         post_type = request.args.get('type', None)
@@ -983,24 +1069,27 @@ def list_linkedin_posts():
                     "error": str(e)
                 })
         
-        # Return the posts with pagination metadata
-        return jsonify({
+        # Cache the response for 5 minutes
+        cache_key = f"api_linkedin_posts:{post_type}:{offset}:{limit}"
+        response_data = {
+            "total": total_count,
             "posts": posts,
-            "meta": {
-                "total": total_count,
-                "offset": offset,
-                "limit": limit,
-                "has_more": (offset + limit) < total_count
-            }
-        })
+            "page": offset // limit + 1,
+            "pages": total_count // limit + (1 if total_count % limit > 0 else 0)
+        }
+        
+        cache.set(cache_key, response_data, expiry=300)  # Cache for 5 minutes
+        
+        return jsonify(response_data)
         
     except Exception as e:
-        logger.error(f"Error listing LinkedIn posts: {str(e)}")
-        return jsonify({"error": str(e), "posts": []}), 500
+        logger.error(f"Error retrieving LinkedIn posts: {e}")
+        return jsonify({"error": str(e)}), 500
 
-@app.route('/api/linkedin/generate', methods=['POST'])
+@app.route('/api/linkedin/posts/generate', methods=['POST'])
+@rate_limit(5, 300)  # 5 requests per 5 minutes
 def generate_linkedin_posts():
-    """Generate new LinkedIn posts"""
+    """Generate new LinkedIn posts."""
     try:
         if not has_linkedin_generator:
             return jsonify({
@@ -1067,11 +1156,8 @@ def generate_linkedin_posts():
         })
         
     except Exception as e:
-        logger.error(f"Error generating LinkedIn posts: {str(e)}")
-        return jsonify({
-            "success": False,
-            "message": f"Error: {str(e)}"
-        }), 500
+        logger.error(f"Error generating LinkedIn posts: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/linkedin/post/<post_id>', methods=['GET'])
 def get_linkedin_post(post_id):

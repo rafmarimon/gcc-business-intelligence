@@ -6,6 +6,10 @@ import uuid
 from datetime import datetime
 from dotenv import load_dotenv
 from src.utils.openai_utils import OpenAIClient
+from src.utils.file_utils import ensure_dir_exists, get_file_content
+from src.utils.redis_cache import get_cache
+import time
+import hashlib
 
 # Load environment variables
 load_dotenv()
@@ -21,13 +25,15 @@ class LinkedInContentGenerator:
     """
     Generates professional LinkedIn content based on business intelligence reports.
     """
-    def __init__(self, output_dir='content', config_path='config/linkedin_config.json', model='gpt-4o'):
+    def __init__(self, output_dir='content', config_path='config/linkedin_config.json', model='gpt-4o', image_output_dir=None, standalone_mode=False):
         """Initialize the LinkedIn content generator.
         
         Args:
             output_dir: Directory to store generated content
             config_path: Path to the LinkedIn config JSON file
             model: The OpenAI model to use (default: gpt-4o)
+            image_output_dir: Directory to store generated images
+            standalone_mode: Boolean indicating standalone mode
         """
         self.output_dir = output_dir
         self.config_path = config_path
@@ -48,6 +54,15 @@ class LinkedInContentGenerator:
         else:
             # Set up our OpenAI client with exponential backoff
             self.openai_client = OpenAIClient(self.api_key)
+        
+        # Initialize cache
+        self.cache = get_cache()
+        
+        # Rate limiting tracking keys
+        self.post_gen_rate_key = "linkedin_post_gen_rate"
+        self.image_gen_rate_key = "linkedin_image_gen_rate"
+        
+        # ... existing code ...
     
     def _load_config(self):
         """Load LinkedIn post configuration from file."""
@@ -473,9 +488,49 @@ class LinkedInContentGenerator:
             logger.error(f"Error saving LinkedIn post: {e}")
             return None
     
-    def generate_linkedin_posts(self, report_text=None):
-        """Generate multiple LinkedIn posts of different types."""
+    def _check_rate_limit(self, key, max_per_hour=10):
+        """Check if rate limit is exceeded for the given operation.
+        
+        Args:
+            key: Rate limit key to check
+            max_per_hour: Maximum operations allowed per hour
+            
+        Returns:
+            bool: True if rate limit is not exceeded, False otherwise
+        """
+        # Get current count
+        hour_key = f"{key}:{int(time.time() / 3600)}"  # Current hour
+        count = self.cache.get(hour_key) or 0
+        
+        # Check if limit exceeded
+        if count >= max_per_hour:
+            logger.warning(f"Rate limit exceeded for {key}: {count}/{max_per_hour} operations this hour")
+            return False
+            
+        # Increment counter
+        self.cache.increment(hour_key, 1)
+        # Set expiry for 2 hours (to ensure it expires after the hour is over)
+        if self.cache.redis_enabled and self.cache.connected:
+            self.cache.redis.expire(hour_key, 7200)
+            
+        return True
+    
+    def generate_linkedin_posts(self, num_posts=1, report_text=None, report_id=None):
+        """Generate LinkedIn posts based on the report text or the latest report."""
         try:
+            # Check rate limit for post generation
+            if not self._check_rate_limit(self.post_gen_rate_key, max_per_hour=20):
+                logger.warning("LinkedIn post generation rate limit exceeded. Try again later.")
+                return []
+            
+            # Check cache for already generated posts based on this report
+            if report_id:
+                cache_key = f"linkedin_posts:{report_id}"
+                cached_posts = self.cache.get(cache_key)
+                if cached_posts:
+                    logger.info(f"Retrieved {len(cached_posts)} cached LinkedIn posts for report {report_id}")
+                    return cached_posts
+            
             post_types = self.config.get("post_types", ["general", "market_update", "sector_focus"])
             posts = []
             
@@ -515,14 +570,15 @@ class LinkedInContentGenerator:
                 
             logger.info(f"Generated {len(posts)} LinkedIn posts and saved to {markdown_path}")
             
-            return {
-                "posts": posts,
-                "markdown_path": markdown_path
-            }
+            # Cache the generated posts if we have a report_id
+            if report_id and posts:
+                self.cache.set(cache_key, posts, expiry=86400 * 7)  # Cache for 7 days
+            
+            return posts
                 
         except Exception as e:
             logger.error(f"Error generating LinkedIn posts: {e}")
-            return None
+            return []
     
     def _generate_post_from_text(self, report_text, post_type="general"):
         """Generate a LinkedIn post directly from report text."""

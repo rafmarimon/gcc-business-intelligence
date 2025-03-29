@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Market Intelligence Platform - Dashboard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">Market Intelligence Platform</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/dashboard">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/clients">Clients</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/sources">Sources</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/reports">Reports</a>
+                    </li>
+                </ul>
+                <div class="ms-auto">
+                    <button class="btn btn-outline-light" id="refresh-data">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-3">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h5 class="card-title">Platform Analytics</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="analytics-container">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h5 class="card-title">Quick Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-primary" id="crawl-all">
+                                <i class="fas fa-spider"></i> Crawl All Sources
+                            </button>
+                            <button class="btn btn-success" id="generate-reports">
+                                <i class="fas fa-file-alt"></i> Generate Reports
+                            </button>
+                            <button class="btn btn-info" id="generate-linkedin">
+                                <i class="fab fa-linkedin"></i> Generate LinkedIn Posts
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title">Recent Activities</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="activities-container">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-9">
+                <div class="card">
+                    <div class="card-header">
+                        <ul class="nav nav-tabs card-header-tabs" id="dashboard-tabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="summaries-tab" data-bs-toggle="tab" data-bs-target="#summaries" type="button" role="tab">
+                                    <i class="fas fa-newspaper"></i> Article Summaries
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="reports-tab" data-bs-toggle="tab" data-bs-target="#reports" type="button" role="tab">
+                                    <i class="fas fa-file-alt"></i> Reports
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="linkedin-tab" data-bs-toggle="tab" data-bs-target="#linkedin" type="button" role="tab">
+                                    <i class="fab fa-linkedin"></i> LinkedIn Content
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-body">
+                        <div class="tab-content" id="dashboard-tab-content">
+                            <!-- Article Summaries Tab -->
+                            <div class="tab-pane fade show active" id="summaries" role="tabpanel">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h4>Latest Articles</h4>
+                                    <div class="d-flex">
+                                        <select class="form-select me-2" id="filter-by-client">
+                                            <option value="">All Clients</option>
+                                            <!-- Options will be populated dynamically -->
+                                        </select>
+                                        <button class="btn btn-primary" id="generate-summaries">
+                                            <i class="fas fa-magic"></i> Generate Missing Summaries
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div id="summaries-container">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="text-center mt-3">
+                                    <button class="btn btn-outline-primary" id="load-more-summaries">
+                                        Load More
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Reports Tab -->
+                            <div class="tab-pane fade" id="reports" role="tabpanel">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h4>Recent Reports</h4>
+                                    <div class="d-flex">
+                                        <select class="form-select me-2" id="filter-reports-by-client">
+                                            <option value="">All Clients</option>
+                                            <!-- Options will be populated dynamically -->
+                                        </select>
+                                        <select class="form-select me-2" id="filter-reports-by-type">
+                                            <option value="">All Types</option>
+                                            <option value="daily">Daily</option>
+                                            <option value="weekly">Weekly</option>
+                                            <option value="monthly">Monthly</option>
+                                        </select>
+                                        <button class="btn btn-primary" id="generate-new-report">
+                                            <i class="fas fa-plus"></i> Generate New Report
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div id="reports-container">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="text-center mt-3">
+                                    <button class="btn btn-outline-primary" id="load-more-reports">
+                                        Load More
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- LinkedIn Content Tab -->
+                            <div class="tab-pane fade" id="linkedin" role="tabpanel">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h4>LinkedIn Posts</h4>
+                                    <div class="d-flex">
+                                        <select class="form-select me-2" id="filter-linkedin-by-client">
+                                            <option value="">All Clients</option>
+                                            <!-- Options will be populated dynamically -->
+                                        </select>
+                                        <select class="form-select me-2" id="filter-linkedin-by-type">
+                                            <option value="">All Types</option>
+                                            <option value="general">General</option>
+                                            <option value="thought_leadership">Thought Leadership</option>
+                                            <option value="news_summary">News Summary</option>
+                                        </select>
+                                        <button class="btn btn-primary" id="generate-new-linkedin">
+                                            <i class="fas fa-plus"></i> Generate New Post
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div id="linkedin-container">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="text-center mt-3">
+                                    <button class="btn btn-outline-primary" id="load-more-linkedin">
+                                        Load More
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="/static/dashboard.js"></script>
+
+    <!-- Load the components -->
+    <script type="module" src="/static/partials/summaries.js"></script>
+    <script type="module" src="/static/partials/reports.js"></script>
+    <script type="module" src="/static/partials/linkedin.js"></script>
+</body>
+</html> 

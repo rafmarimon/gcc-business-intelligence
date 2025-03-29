@@ -7,14 +7,24 @@ import argparse
 import logging
 import json
 from datetime import datetime, timedelta
-import tensorflow as tf
 import pandas as pd
 import matplotlib.pyplot as plt
 from bs4 import BeautifulSoup
 import requests
-import pdfkit
 import markdown
 from dotenv import load_dotenv
+
+# Try to import TensorFlow, but make it optional
+try:
+    import tensorflow as tf
+    import numpy as np
+    from sklearn.preprocessing import MinMaxScaler
+    has_tensorflow = True
+    logging.info("TensorFlow is available and will be used for ML features")
+except ImportError:
+    has_tensorflow = False
+    import numpy as np
+    logging.info("TensorFlow not available, ML features will be limited")
 
 # Add the project root to the path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -71,8 +81,8 @@ class ClientReportGenerator:
         self.ml_dir = os.path.join("data", "ml", self.client_id)
         os.makedirs(self.ml_dir, exist_ok=True)
         
-        # Initialize TensorFlow model
-        self.model = self._initialize_tf_model()
+        # Initialize TensorFlow model if available
+        self.model = self._initialize_tf_model() if has_tensorflow else None
         
         # Set up reports directory structure
         self.reports_dir = os.path.join("reports", self.client_id)
@@ -86,6 +96,9 @@ class ClientReportGenerator:
     def _initialize_tf_model(self):
         """Initialize TensorFlow model for report memorization and analysis."""
         try:
+            if not has_tensorflow:
+                return None
+                
             # Check if TensorFlow is installed
             logger.info(f"TensorFlow version: {tf.__version__}")
             
@@ -112,8 +125,8 @@ class ClientReportGenerator:
             
             return model
             
-        except ImportError:
-            logger.warning("TensorFlow not installed, ML features will be limited")
+        except Exception as e:
+            logger.warning(f"Error initializing TensorFlow model: {e}")
             return None
     
     def collect_news(self, keywords=None, days=7):
@@ -397,15 +410,20 @@ class ClientReportGenerator:
     def _tf_forecast(self, dates, values):
         """Use TensorFlow to forecast the next value in a time series."""
         try:
+            if not has_tensorflow or self.model is None:
+                # Fallback to simpler forecasting
+                if len(values) >= 2:
+                    avg_change = values[-1] - values[-2]
+                    return values[-1] + avg_change
+                return values[-1]
+                
             if len(values) < 5:
                 raise ValueError("Need at least 5 data points for TensorFlow forecasting")
                 
             # Convert to numpy arrays
-            import numpy as np
             values_array = np.array(values).reshape(-1, 1)
             
             # Normalize data
-            from sklearn.preprocessing import MinMaxScaler
             scaler = MinMaxScaler(feature_range=(0, 1))
             scaled_values = scaler.fit_transform(values_array)
             
@@ -718,7 +736,7 @@ This report provides key business intelligence insights for the UAE and GCC regi
     
     def _memorize_report(self, content, articles):
         """Use TensorFlow to memorize the report content for future reference."""
-        if self.model is None:
+        if not has_tensorflow or self.model is None:
             logger.warning("TensorFlow model not available, skipping report memorization")
             return
         
@@ -756,10 +774,12 @@ def main():
     args = parser.parse_args()
     
     try:
-        # Try to import pdfkit
+        # Try to import pdfkit and shutil for PDF generation
         import pdfkit
         import shutil
+        has_pdfkit = True
     except ImportError:
+        has_pdfkit = False
         logger.warning("pdfkit not installed. PDF generation will be disabled.")
         logger.warning("To enable PDF generation, install pdfkit: pip install pdfkit")
     
@@ -777,7 +797,7 @@ def main():
     print(f"Markdown: {report_files['markdown']}")
     print(f"HTML: {report_files['html']}")
     
-    if os.path.exists(report_files['pdf']):
+    if has_pdfkit and os.path.exists(report_files['pdf']):
         print(f"PDF: {report_files['pdf']}")
     else:
         print("PDF generation was skipped or failed.")

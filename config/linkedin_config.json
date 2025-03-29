@@ -29,38 +29,15 @@
             "length": "medium"
         }
     ],
-    "hashtags": [
-        "#UAE",
-        "#GCC",
-        "#BusinessIntelligence", 
-        "#MiddleEastBusiness",
-        "#UAEBusiness",
-        "#GulfBusiness",
-        "#BusinessStrategy",
-        "#MarketInsights",
-        "#UAEEconomy",
-        "#UAEGDP",
-        "#SaudiArabia",
-        "#SaudiVision2030",
-        "#Qatar",
-        "#QatarEconomy",
-        "#Bahrain",
-        "#Kuwait",
-        "#Oman",
-        "#MiddleEast",
-        "#MENA",
-        "#Innovation",
-        "#DigitalTransformation",
-        "#Sustainability",
-        "#RenewableEnergy",
-        "#CleanEnergy",
-        "#Finance",
-        "#Investment",
-        "#FDI",
-        "#StartupUAE",
-        "#TechUAE",
-        "#GlobalBusiness"
-    ],
+    "hashtags": {
+        "general": ["#UAE", "#GCC", "#BusinessIntelligence", "#UAEBusiness", "#GulfBusiness"],
+        "market_update": ["#UAEMarkets", "#GCCEconomy", "#MarketUpdate", "#BusinessIntelligence", "#GlobalTrade", "#EmergingMarkets"],
+        "sector_focus": ["#UAETech", "#GCCInnovation", "#DigitalTransformation", "#TechInvestment", "#FinTech", "#AIinnovation"],
+        "us_uae_relations": ["#USUAERelations", "#InternationalTrade", "#BusinessDiplomacy", "#GlobalOpportunities", "#TradePartners"],
+        "investment_opportunities": ["#UAEInvestment", "#GCCOpportunities", "#ForeignInvestment", "#EmergingMarkets", "#CapitalGrowth"],
+        "week_in_review": ["#WeeklyReview", "#UAEBusiness", "#GCCmarkets", "#BusinessInsights", "#MarketSummary"],
+        "month_in_review": ["#MonthlyReview", "#UAEEconomy", "#GCCbusiness", "#EconomicTrends", "#MarketAnalysis"]
+    },
     "keywords": [
         "UAE economy",
         "GCC markets",
@@ -98,7 +75,7 @@
     "min_post_length": 200,
     "hashtags_per_post": {
         "min": 3,
-        "max": 5
+        "max": 7
     },
     "calls_to_action": [
         "What trends are you noticing in the {topic} sector?",
@@ -111,5 +88,34 @@
         "Connect with me to explore how this affects your business strategy.",
         "Share your experience with similar market conditions.",
         "What's your perspective on these market developments?"
-    ]
+    ],
+    "include_images": true,
+    "image_style": "vivid",
+    "image_quality": "standard",
+    "image_size": "1024x1024",
+    "weekly_schedule": {
+        "enabled": true,
+        "day": "friday",
+        "time": "12:00"
+    },
+    "monthly_schedule": {
+        "enabled": true,
+        "day": 1,
+        "time": "10:00"
+    },
+    "daily_schedule": {
+        "enabled": true,
+        "time": "09:00"
+    },
+    "prompt_templates": {
+        "image": {
+            "general": "A professional illustration representing UAE and GCC business landscape. Show a modern city skyline with business professionals in traditional and western attire discussing business. Professional, clean, corporate style.",
+            "market_update": "A data visualization showing economic indicators for UAE and GCC markets. Include charts, upward trends, and financial district backdrop of Dubai or Abu Dhabi.",
+            "sector_focus": "A detailed illustration of [SECTOR] innovation in the UAE. Show cutting-edge technology, professionals collaborating, and UAE architectural elements in the background.",
+            "us_uae_relations": "A professional illustration of US-UAE business cooperation. Include elements symbolizing both countries like flags, landmark buildings, and business professionals shaking hands.",
+            "investment_opportunities": "A visual showing investment growth in UAE/GCC. Include upward charts, construction sites, real estate developments, and modern infrastructure with UAE architectural elements.",
+            "week_in_review": "A weekly business review visualization for UAE/GCC with 7 data points representing each day of the week. Show business professionals analyzing data with Dubai skyline in background.",
+            "month_in_review": "A monthly business trends visualization for UAE/GCC with calendar elements and charts showing month-long progress. Include iconic UAE buildings and business professionals."
+        }
+    }
 } 

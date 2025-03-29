@@ -6,42 +6,38 @@
     <title>Global Possibilities - GCC Business Intelligence</title>
     <style>
         :root {
-            --primary-color: #1e4d92;
-            --secondary-color: #3a7ca5;
-            --accent-color: #f2a365;
-            --light-bg: #f8f9fa;
-            --dark-bg: #343a40;
-            --text-color: #212529;
-            --light-text: #f8f9fa;
-            --border-radius: 6px;
-            --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --light-color: #ecf0f1;
+            --border-radius: 8px;
+            --box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
         
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         
         body {
-            background-color: var(--light-bg);
-            color: var(--text-color);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             line-height: 1.6;
+            color: #333;
+            background-color: #fafafa;
         }
         
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        /* Header */
         header {
             background-color: var(--primary-color);
             color: white;
             padding: 1rem 0;
-            box-shadow: var(--box-shadow);
-        }
-        
-        .container {
-            width: 100%;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 2rem;
         }
         
         .header-content {
@@ -51,18 +47,17 @@
         }
         
         .logo {
-            font-size: 1.5rem;
-            font-weight: bold;
             color: white;
+            font-size: 1.5rem;
+            font-weight: 700;
             text-decoration: none;
         }
         
+        /* Hero Section */
         .hero {
-            padding: 4rem 0;
-            background: linear-gradient(rgba(30, 77, 146, 0.9), rgba(30, 77, 146, 0.7)), url('https://images.unsplash.com/photo-1519999482648-25049ddd37b1?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2069&q=80');
-            background-size: cover;
-            background-position: center;
+            background-color: var(--primary-color);
             color: white;
+            padding: 4rem 0;
             text-align: center;
         }
         
@@ -75,40 +70,25 @@
             font-size: 1.2rem;
             max-width: 800px;
             margin: 0 auto 2rem;
+            opacity: 0.9;
         }
         
-        .btn {
-            display: inline-block;
-            padding: 0.75rem 1.5rem;
-            background-color: var(--accent-color);
-            color: white;
-            text-decoration: none;
-            border-radius: var(--border-radius);
-            font-weight: 600;
-            border: none;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        .btn:hover {
-            background-color: #e08c50;
-            transform: translateY(-2px);
-        }
-        
+        /* Section */
         .section {
             padding: 4rem 0;
         }
         
         .section-title {
-            text-align: center;
-            margin-bottom: 3rem;
             font-size: 2rem;
+            margin-bottom: 2rem;
+            text-align: center;
             color: var(--primary-color);
         }
         
+        /* Features */
         .features {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 2rem;
         }
         
@@ -121,7 +101,7 @@
         }
         
         .feature-icon {
-            font-size: 2.5rem;
+            font-size: 3rem;
             margin-bottom: 1rem;
             color: var(--secondary-color);
         }
@@ -131,111 +111,236 @@
             color: var(--primary-color);
         }
         
-        .reports {
+        /* Report List */
+        .report-list-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        
+        .report-card {
             background-color: white;
-            padding: 2rem;
             border-radius: var(--border-radius);
             box-shadow: var(--box-shadow);
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
         
-        .report-list {
-            list-style: none;
+        .report-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
         }
         
-        .report-item {
-            margin-bottom: 1.5rem;
-            padding-bottom: 1.5rem;
+        .report-header {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.75rem 1rem;
+            background-color: #f8f9fa;
             border-bottom: 1px solid #eee;
         }
         
-        .report-item:last-child {
-            border-bottom: none;
-            margin-bottom: 0;
-            padding-bottom: 0;
+        .report-client-badge, .report-type-badge {
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+        }
+        
+        .report-client-badge {
+            background-color: #e3f2fd;
+            color: #1565c0;
+        }
+        
+        .report-type-badge {
+            background-color: #f1f8e9;
+            color: #558b2f;
         }
         
         .report-title {
             font-size: 1.2rem;
-            margin-bottom: 0.5rem;
+            padding: 1rem 1rem 0.5rem;
             color: var(--primary-color);
         }
         
-        .report-meta {
-            font-size: 0.9rem;
-            color: #6c757d;
-            margin-bottom: 0.5rem;
+        .report-date {
+            font-size: 0.85rem;
+            color: #666;
+            padding: 0 1rem;
         }
         
         .report-description {
-            margin-bottom: 1rem;
+            padding: 0.5rem 1rem 1rem;
+            color: #555;
+            font-size: 0.9rem;
+            height: 5rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
         }
         
-        .report-links {
+        .report-actions {
             display: flex;
+            justify-content: space-between;
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-top: 1px solid #eee;
+        }
+        
+        .report-link, .report-analytics-btn {
+            font-size: 0.85rem;
+            text-decoration: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            color: var(--secondary-color);
+            background-color: white;
+            border: 1px solid var(--secondary-color);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+        
+        .report-link:hover, .report-analytics-btn:hover {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+        
+        .icon {
+            margin-right: 0.4rem;
+        }
+        
+        /* Report Control Panel */
+        .report-control-panel {
+            background-color: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+        }
+        
+        .report-filters, .report-sorting {
+            flex: 1;
+            min-width: 300px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        
+        .filter-controls {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .form-control {
+            flex: 1;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: var(--border-radius);
+            font-family: inherit;
+            min-width: 120px;
+        }
+        
+        .btn {
+            padding: 0.75rem 1.5rem;
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: 600;
+            transition: background-color 0.2s ease;
+            text-align: center;
+        }
+        
+        .btn:hover {
+            background-color: #2980b9;
+        }
+        
+        .btn-sm {
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+        }
+        
+        .btn-outline {
+            background-color: transparent;
+            color: var(--secondary-color);
+            border: 1px solid var(--secondary-color);
+        }
+        
+        .btn-outline:hover {
+            background-color: #eef7fd;
+        }
+        
+        .btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        
+        /* Search input */
+        .report-search {
+            margin-bottom: 1.5rem;
+        }
+        
+        .report-search .form-control {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            font-size: 1rem;
+            border: 2px solid #eee;
+            transition: border-color 0.2s ease;
+        }
+        
+        .report-search .form-control:focus {
+            border-color: var(--secondary-color);
+            outline: none;
+        }
+        
+        /* Pagination controls */
+        .pagination-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 2rem;
             gap: 1rem;
         }
         
-        .report-link {
-            font-size: 0.9rem;
-            color: var(--secondary-color);
-            text-decoration: none;
+        #pageIndicator {
+            font-weight: 600;
+            color: var(--primary-color);
         }
         
-        .report-link:hover {
-            text-decoration: underline;
-        }
-        
-        footer {
-            background-color: var(--dark-bg);
-            color: var(--light-text);
-            padding: 3rem 0;
-        }
-        
-        .footer-content {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 2rem;
-        }
-        
-        .footer-section h3 {
-            margin-bottom: 1.5rem;
-            color: var(--accent-color);
-        }
-        
-        .footer-links {
-            list-style: none;
-        }
-        
-        .footer-links li {
-            margin-bottom: 0.5rem;
-        }
-        
-        .footer-links a {
-            color: var(--light-text);
-            text-decoration: none;
-        }
-        
-        .footer-links a:hover {
-            color: var(--accent-color);
-        }
-        
-        .copyright {
+        /* No reports message */
+        .no-reports-message {
+            background-color: white;
+            padding: 2rem;
             text-align: center;
-            margin-top: 2rem;
-            padding-top: 2rem;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            color: #666;
+            grid-column: 1 / -1;
         }
         
-        /* Modal styles */
+        /* Modal */
         .modal {
             display: none;
             position: fixed;
-            top: 0;
+            z-index: 1000;
             left: 0;
+            top: 0;
             width: 100%;
             height: 100%;
             background-color: rgba(0, 0, 0, 0.5);
-            z-index: 1000;
             overflow: auto;
         }
         
@@ -252,45 +357,70 @@
         
         .close {
             position: absolute;
-            top: 1rem;
-            right: 1.5rem;
+            right: 20px;
+            top: 20px;
             font-size: 1.5rem;
+            font-weight: bold;
             cursor: pointer;
-        }
-        
-        .close:hover {
-            color: var(--accent-color);
         }
         
         .form-group {
             margin-bottom: 1.5rem;
         }
         
-        .form-label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-        }
-        
-        .form-control {
-            width: 100%;
-            padding: 0.75rem;
-            border: 1px solid #ced4da;
-            border-radius: var(--border-radius);
-            font-size: 1rem;
-        }
-        
         .form-check {
-            display: flex;
-            align-items: center;
-            margin-bottom: 1rem;
+            margin-bottom: 1.5rem;
         }
         
         .form-check-input {
             margin-right: 0.5rem;
         }
         
-        /* Loading spinner */
+        /* Footer */
+        footer {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 4rem 0 2rem;
+        }
+        
+        .footer-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .footer-section h3 {
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+        
+        .footer-links {
+            list-style: none;
+        }
+        
+        .footer-links li {
+            margin-bottom: 0.5rem;
+        }
+        
+        .footer-links a {
+            color: #ccc;
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+        
+        .footer-links a:hover {
+            color: white;
+        }
+        
+        .copyright {
+            text-align: center;
+            padding-top: 2rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: #ccc;
+            font-size: 0.9rem;
+        }
+        
         .spinner-border {
             display: inline-block;
             width: 2rem;
@@ -330,6 +460,394 @@
             border: 1px solid #f5c6cb;
         }
         
+        /* Chatbot floating button */
+        .chatbot-toggle {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 4rem;
+            height: 4rem;
+            background-color: var(--accent-color);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+            z-index: 900;
+        }
+        
+        .chatbot-toggle:hover {
+            transform: scale(1.1);
+            background-color: #c0392b;
+        }
+        
+        /* Chatbot panel */
+        .chatbot-panel {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 400px;
+            height: 600px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 25px rgba(0, 0, 0, 0.2);
+            z-index: 950;
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .chatbot-header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .chatbot-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .chatbot-close {
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: white;
+            opacity: 0.8;
+            transition: opacity 0.2s ease;
+        }
+        
+        .chatbot-close:hover {
+            opacity: 1;
+        }
+        
+        .chatbot-messages {
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chatbot-input-container {
+            padding: 1rem;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .chatbot-input {
+            flex: 1;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: var(--border-radius);
+            font-family: inherit;
+        }
+        
+        .chatbot-send {
+            padding: 0.75rem 1.5rem;
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+        }
+        
+        .chatbot-message {
+            max-width: 80%;
+            padding: 0.75rem 1rem;
+            border-radius: 1rem;
+            margin-bottom: 0.5rem;
+            word-wrap: break-word;
+        }
+        
+        .chatbot-message.user {
+            align-self: flex-end;
+            background-color: var(--secondary-color);
+            color: white;
+            border-bottom-right-radius: 0.2rem;
+        }
+        
+        .chatbot-message.assistant {
+            align-self: flex-start;
+            background-color: #f1f1f1;
+            color: #333;
+            border-bottom-left-radius: 0.2rem;
+        }
+        
+        /* Widget preferences panel */
+        .widget-preferences {
+            position: fixed;
+            top: 5rem;
+            right: 1rem;
+            background-color: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            width: 300px;
+            padding: 1.5rem;
+            z-index: 900;
+            display: none;
+        }
+        
+        .preferences-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .preferences-title {
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        
+        .preferences-close {
+            cursor: pointer;
+            font-size: 1.2rem;
+            color: #777;
+        }
+        
+        .preference-item {
+            margin-bottom: 1rem;
+        }
+        
+        .preference-toggle {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .preference-label {
+            margin-right: 1rem;
+            font-size: 0.9rem;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 48px;
+            height: 24px;
+        }
+        
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .toggle-slider {
+            background-color: var(--secondary-color);
+        }
+        
+        input:focus + .toggle-slider {
+            box-shadow: 0 0 1px var(--secondary-color);
+        }
+        
+        input:checked + .toggle-slider:before {
+            transform: translateX(24px);
+        }
+        
+        .save-preferences {
+            width: 100%;
+            margin-top: 1rem;
+        }
+        
+        /* Analytics Section */
+        .analytics-panel {
+            background-color: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 1.5rem;
+            margin-top: 2rem;
+            display: none;
+        }
+        
+        .analytics-title {
+            font-size: 1.25rem;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .analytics-chart {
+            height: 300px;
+            margin: 1rem 0;
+            background-color: #f8f9fa;
+            border-radius: var(--border-radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #777;
+        }
+        
+        .analytics-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-radius: var(--border-radius);
+            margin-bottom: 0.75rem;
+        }
+        
+        .analytics-icon {
+            font-size: 1.5rem;
+            margin-right: 1rem;
+            color: var(--secondary-color);
+        }
+        
+        .analytics-info {
+            flex: 1;
+        }
+        
+        .analytics-value {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        
+        .analytics-label {
+            font-size: 0.85rem;
+            color: #777;
+        }
+        
+        /* Notification panel */
+        .notification-center {
+            position: fixed;
+            top: 5rem;
+            right: 1rem;
+            background-color: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            width: 350px;
+            display: none;
+            overflow: hidden;
+            z-index: 950;
+        }
+        
+        .notification-header {
+            padding: 1rem;
+            background-color: var(--primary-color);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .notification-items {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .notification-item {
+            padding: 1rem;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+        }
+        
+        .notification-dot {
+            width: 10px;
+            height: 10px;
+            background-color: var(--accent-color);
+            border-radius: 50%;
+            margin-right: 1rem;
+        }
+        
+        .notification-content {
+            flex: 1;
+        }
+        
+        .notification-time {
+            font-size: 0.75rem;
+            color: #777;
+            margin-top: 0.25rem;
+        }
+        
+        .notification-controls {
+            padding: 1rem;
+            background-color: #f8f9fa;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        /* User settings button */
+        .user-settings {
+            display: flex;
+            align-items: center;
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            z-index: 100;
+        }
+        
+        .settings-button {
+            background-color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: var(--box-shadow);
+            font-size: 1.25rem;
+            color: var(--primary-color);
+            margin-left: 0.5rem;
+        }
+        
+        .settings-button:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .notification-badge {
+            background-color: var(--accent-color);
+            color: white;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            position: absolute;
+            top: -5px;
+            right: -5px;
+        }
+        
         @media (max-width: 768px) {
             .hero h1 {
                 font-size: 2rem;
@@ -347,30 +865,31 @@
                 margin: 20% auto;
                 width: 95%;
             }
-        }
-        
-        .report-filters {
-            margin-bottom: 20px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid #eee;
-        }
-        
-        .filter-controls {
-            display: flex;
-            gap: 10px;
-            margin-top: 8px;
-        }
-        
-        .filter-controls .form-control {
-            flex: 1;
-        }
-        
-        .filter-controls .btn {
-            padding: 0.4rem 0.8rem;
-        }
-        
-        .report-client, .report-type {
-            font-weight: 600;
+            
+            .report-control-panel {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .report-filters, .report-sorting {
+                width: 100%;
+            }
+            
+            .chatbot-panel {
+                width: 90%;
+                height: 80%;
+                bottom: 1rem;
+                right: 5%;
+            }
+            
+            .widget-preferences, .notification-center {
+                width: 90%;
+                right: 5%;
+            }
+            
+            .analytics-panel {
+                overflow-x: auto;
+            }
         }
     </style>
 </head>
@@ -380,6 +899,17 @@
         <div class="container">
             <div class="header-content">
                 <a href="/" class="logo">Global Possibilities</a>
+                
+                <!-- User settings buttons -->
+                <div class="user-settings">
+                    <button id="notificationsBtn" class="settings-button" title="Notifications">
+                        🔔
+                        <span id="notificationBadge" class="notification-badge">3</span>
+                    </button>
+                    <button id="preferencesBtn" class="settings-button" title="Personalize Dashboard">
+                        ⚙️
+                    </button>
+                </div>
             </div>
         </div>
     </header>
@@ -422,6 +952,51 @@
         </div>
     </section>
     
+    <!-- Analytics Panel Section -->
+    <section id="analyticsPanel" class="section" style="padding-top: 0;">
+        <div class="container">
+            <div class="analytics-panel">
+                <h2 class="analytics-title">
+                    <span class="analytics-icon">📊</span>
+                    Report Analytics
+                </h2>
+                <div class="analytics-chart" id="topicsChart">
+                    Chart showing topic distribution will appear here
+                </div>
+                <div class="analytics-items">
+                    <div class="analytics-item">
+                        <div class="analytics-icon">🔥</div>
+                        <div class="analytics-info">
+                            <div class="analytics-value">Technology</div>
+                            <div class="analytics-label">Most Popular Topic</div>
+                        </div>
+                    </div>
+                    <div class="analytics-item">
+                        <div class="analytics-icon">📈</div>
+                        <div class="analytics-info">
+                            <div class="analytics-value">18</div>
+                            <div class="analytics-label">Reports Generated This Month</div>
+                        </div>
+                    </div>
+                    <div class="analytics-item">
+                        <div class="analytics-icon">👁️</div>
+                        <div class="analytics-info">
+                            <div class="analytics-value">Saudi Economy</div>
+                            <div class="analytics-label">Most Viewed Report Topic</div>
+                        </div>
+                    </div>
+                    <div class="analytics-item">
+                        <div class="analytics-icon">💬</div>
+                        <div class="analytics-info">
+                            <div class="analytics-value">42</div>
+                            <div class="analytics-label">AI Assistant Interactions</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
     <!-- Recent Reports Section -->
     <section class="section" style="background-color: #f8f9fa;">
         <div class="container">
@@ -432,9 +1007,63 @@
                     <p>Loading reports...</p>
                 </div>
                 <div id="reportsAlert" class="alert alert-danger" style="display: none;"></div>
-                <ul class="report-list" id="reportsList">
+                
+                <!-- Enhanced Filtering & Sorting Panel -->
+                <div class="report-control-panel">
+                    <div class="report-filters">
+                        <div class="form-group">
+                            <label class="form-label">Filter By:</label>
+                            <div class="filter-controls">
+                                <select id="clientFilter" class="form-control">
+                                    <option value="all">All Clients</option>
+                                    <option value="general" selected>Global Possibilities Team</option>
+                                    <option value="google">Google</option>
+                                    <option value="nestle">Nestle</option>
+                                </select>
+                                <select id="frequencyFilter" class="form-control">
+                                    <option value="all">All Frequencies</option>
+                                    <option value="daily" selected>Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                    <option value="quarterly">Quarterly</option>
+                                </select>
+                                <input type="date" id="dateFilter" class="form-control" title="Filter by date">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="report-sorting">
+                        <div class="form-group">
+                            <label class="form-label">Sort By:</label>
+                            <div class="filter-controls">
+                                <select id="sortCriteria" class="form-control">
+                                    <option value="date-desc" selected>Date (Newest First)</option>
+                                    <option value="date-asc">Date (Oldest First)</option>
+                                    <option value="client">Client Name</option>
+                                    <option value="type">Report Type</option>
+                                </select>
+                                <button id="applyFilters" class="btn">Apply Filters</button>
+                                <button id="resetFilters" class="btn btn-outline">Reset</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Search input -->
+                <div class="report-search">
+                    <input type="text" id="reportSearch" class="form-control" placeholder="Search reports by title, client, or content...">
+                </div>
+                
+                <!-- Reports will be loaded here -->
+                <div id="reportsList" class="report-list-grid">
                     <!-- Reports will be loaded here via JavaScript -->
-                </ul>
+                </div>
+                
+                <!-- Pagination controls -->
+                <div class="pagination-controls">
+                    <button id="prevPage" class="btn btn-sm" disabled>&laquo; Previous</button>
+                    <span id="pageIndicator">Page 1 of 1</span>
+                    <button id="nextPage" class="btn btn-sm" disabled>Next &raquo;</button>
+                </div>
             </div>
         </div>
     </section>
@@ -485,6 +1114,122 @@
         </div>
     </div>
     
+    <!-- Widget Preferences Panel -->
+    <div id="widgetPreferences" class="widget-preferences">
+        <div class="preferences-header">
+            <div class="preferences-title">Dashboard Preferences</div>
+            <div class="preferences-close">&times;</div>
+        </div>
+        <div class="preference-items">
+            <div class="preference-item">
+                <div class="preference-toggle">
+                    <span class="preference-label">Show Analytics Panel</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="showAnalytics" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="preference-item">
+                <div class="preference-toggle">
+                    <span class="preference-label">Show Chatbot</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="showChatbot" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="preference-item">
+                <div class="preference-toggle">
+                    <span class="preference-label">Grid View for Reports</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="gridView" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="preference-item">
+                <div class="preference-toggle">
+                    <span class="preference-label">Receive Notifications</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="receiveNotifications" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="preference-item">
+                <div class="preference-toggle">
+                    <span class="preference-label">Dark Mode</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="darkMode">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+        <button id="savePreferences" class="btn save-preferences">Save Preferences</button>
+    </div>
+    
+    <!-- Notification Center -->
+    <div id="notificationCenter" class="notification-center">
+        <div class="notification-header">
+            <div>Notifications</div>
+            <div id="closeNotifications" style="cursor: pointer;">&times;</div>
+        </div>
+        <div class="notification-items">
+            <div class="notification-item">
+                <div class="notification-dot"></div>
+                <div class="notification-content">
+                    <div>New report generated for Google</div>
+                    <div class="notification-time">10 minutes ago</div>
+                </div>
+            </div>
+            <div class="notification-item">
+                <div class="notification-dot"></div>
+                <div class="notification-content">
+                    <div>System update completed successfully</div>
+                    <div class="notification-time">2 hours ago</div>
+                </div>
+            </div>
+            <div class="notification-item">
+                <div class="notification-dot"></div>
+                <div class="notification-content">
+                    <div>New data sources available for Saudi markets</div>
+                    <div class="notification-time">Yesterday</div>
+                </div>
+            </div>
+        </div>
+        <div class="notification-controls">
+            <button id="markAllRead" class="btn btn-sm">Mark All Read</button>
+            <button id="notificationSettings" class="btn btn-sm btn-outline">Settings</button>
+        </div>
+    </div>
+    
+    <!-- Chatbot Floating Button -->
+    <div id="chatbotToggle" class="chatbot-toggle">
+        💬
+    </div>
+    
+    <!-- Chatbot Panel -->
+    <div id="chatbotPanel" class="chatbot-panel">
+        <div class="chatbot-header">
+            <div class="chatbot-title">
+                <div>💬</div>
+                <div>Business Intelligence Assistant</div>
+            </div>
+            <div id="chatbotClose" class="chatbot-close">&times;</div>
+        </div>
+        <div id="chatbotMessages" class="chatbot-messages">
+            <div class="chatbot-message assistant">
+                Hello! I'm your Business Intelligence Assistant. I can answer questions about GCC markets, help you interpret reports, or provide insights on business trends in the region. How can I help you today?
+            </div>
+        </div>
+        <div class="chatbot-input-container">
+            <input type="text" id="chatbotInput" class="chatbot-input" placeholder="Type your question here...">
+            <button id="chatbotSend" class="chatbot-send">Send</button>
+        </div>
+    </div>
+    
     <!-- Footer -->
     <footer>
         <div class="container">
@@ -517,188 +1262,7 @@
         </div>
     </footer>
     
-    <script>
-        // DOM Elements
-        const generateReportBtn = document.getElementById('generateReportBtn');
-        const footerGenerateBtn = document.getElementById('footerGenerateBtn');
-        const reportModal = document.getElementById('reportModal');
-        const closeBtn = document.querySelector('.close');
-        const generateReportForm = document.getElementById('generateReportForm');
-        const reportsList = document.getElementById('reportsList');
-        const reportsLoading = document.getElementById('reportsLoading');
-        const reportsAlert = document.getElementById('reportsAlert');
-        const generateAlert = document.getElementById('generateAlert');
-        const generatingLoading = document.getElementById('generatingLoading');
-        
-        // Modal Controls
-        function openModal() {
-            reportModal.style.display = 'block';
-        }
-        
-        function closeModal() {
-            reportModal.style.display = 'none';
-        }
-        
-        // Event Listeners
-        generateReportBtn.addEventListener('click', openModal);
-        footerGenerateBtn.addEventListener('click', openModal);
-        closeBtn.addEventListener('click', closeModal);
-        
-        window.addEventListener('click', (event) => {
-            if (event.target === reportModal) {
-                closeModal();
-            }
-        });
-        
-        // Load Reports with optional client and frequency filters
-        async function loadReports(client = 'general', frequency = 'daily') {
-            try {
-                reportsLoading.style.display = 'block';
-                reportsAlert.style.display = 'none';
-                reportsList.innerHTML = '';
-                
-                const response = await fetch(`/api/reports?client=${client}&frequency=${frequency}`);
-                const data = await response.json();
-                
-                reportsLoading.style.display = 'none';
-                
-                if (data.error) {
-                    reportsAlert.textContent = `Error: ${data.error}`;
-                    reportsAlert.style.display = 'block';
-                    return;
-                }
-                
-                if (!data.reports || data.reports.length === 0) {
-                    reportsList.innerHTML = `<p>No reports available for ${client} (${frequency}). Generate your first report!</p>`;
-                    return;
-                }
-                
-                // Add filter selector
-                const filterDiv = document.createElement('div');
-                filterDiv.className = 'report-filters';
-                filterDiv.innerHTML = `
-                    <div class="form-group">
-                        <label class="form-label">Filter Reports:</label>
-                        <div class="filter-controls">
-                            <select id="clientFilter" class="form-control">
-                                <option value="general" ${client === 'general' ? 'selected' : ''}>Global Possibilities Team</option>
-                                <option value="google" ${client === 'google' ? 'selected' : ''}>Google</option>
-                                <option value="nestle" ${client === 'nestle' ? 'selected' : ''}>Nestle</option>
-                            </select>
-                            <select id="frequencyFilter" class="form-control">
-                                <option value="daily" ${frequency === 'daily' ? 'selected' : ''}>Daily</option>
-                                <option value="weekly" ${frequency === 'weekly' ? 'selected' : ''}>Weekly</option>
-                                <option value="monthly" ${frequency === 'monthly' ? 'selected' : ''}>Monthly</option>
-                                <option value="quarterly" ${frequency === 'quarterly' ? 'selected' : ''}>Quarterly</option>
-                            </select>
-                            <button id="applyFilters" class="btn btn-sm">Apply</button>
-                        </div>
-                    </div>
-                `;
-                reportsList.appendChild(filterDiv);
-                
-                // Add event listener to filter button
-                setTimeout(() => {
-                    document.getElementById('applyFilters').addEventListener('click', () => {
-                        const clientFilter = document.getElementById('clientFilter').value;
-                        const frequencyFilter = document.getElementById('frequencyFilter').value;
-                        loadReports(clientFilter, frequencyFilter);
-                    });
-                }, 0);
-                
-                data.reports.forEach(report => {
-                    const reportItem = document.createElement('li');
-                    reportItem.className = 'report-item';
-                    
-                    reportItem.innerHTML = `
-                        <h3 class="report-title">${report.title}</h3>
-                        <div class="report-meta">
-                            <span class="report-client">Client: ${report.client}</span> | 
-                            <span class="report-type">${report.frequency.charAt(0).toUpperCase() + report.frequency.slice(1)}</span> | 
-                            <span class="report-date">Generated on ${report.formatted_date} at ${report.formatted_time}</span>
-                        </div>
-                        <p class="report-description">${report.description}</p>
-                        <div class="report-links">
-                            <a href="${report.html_url}" class="report-link" target="_blank">View HTML</a>
-                            <a href="${report.pdf_url}" class="report-link" target="_blank">Download PDF</a>
-                            <a href="${report.md_url}" class="report-link" target="_blank">View Markdown</a>
-                        </div>
-                    `;
-                    
-                    reportsList.appendChild(reportItem);
-                });
-            } catch (error) {
-                reportsLoading.style.display = 'none';
-                reportsAlert.textContent = `Failed to load reports: ${error.message}`;
-                reportsAlert.style.display = 'block';
-            }
-        }
-        
-        // Generate Report
-        generateReportForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            
-            const client = document.getElementById('clientSelect').value;
-            const reportType = document.getElementById('reportType').value;
-            const collectNews = document.getElementById('collectNews').checked;
-            
-            try {
-                // Reset alerts and show loading
-                generateAlert.style.display = 'none';
-                generatingLoading.style.display = 'block';
-                
-                const response = await fetch('/api/generate-report', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        client: client,
-                        report_type: reportType,
-                        collect_news: collectNews
-                    })
-                });
-                
-                const data = await response.json();
-                
-                generatingLoading.style.display = 'none';
-                
-                if (!data.success) {
-                    generateAlert.textContent = data.message || 'Failed to generate report';
-                    generateAlert.className = 'alert alert-danger';
-                    generateAlert.style.display = 'block';
-                    return;
-                }
-                
-                // Show success message
-                generateAlert.textContent = data.message;
-                generateAlert.className = 'alert alert-success';
-                generateAlert.style.display = 'block';
-                
-                // Reload reports after a delay
-                setTimeout(() => {
-                    loadReports(client, reportType);
-                    closeModal();
-                }, 3000);
-                
-            } catch (error) {
-                generatingLoading.style.display = 'none';
-                generateAlert.textContent = `Error: ${error.message}`;
-                generateAlert.className = 'alert alert-danger';
-                generateAlert.style.display = 'block';
-            }
-        });
-        
-        // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            // Add our custom styles
-            const styleElement = document.createElement('style');
-            styleElement.textContent = addStyles;
-            document.head.appendChild(styleElement);
-            
-            // Initialize with default values
-            loadReports('general', 'daily');
-        });
-    </script>
+    <!-- Add dashboard.js script tag -->
+    <script src="/static/dashboard.js"></script>
 </body>
 </html> 

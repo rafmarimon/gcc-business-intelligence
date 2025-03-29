@@ -2,6 +2,7 @@ import os
 import json
 import logging
 import re
+import uuid
 from datetime import datetime
 from dotenv import load_dotenv
 from src.utils.openai_utils import OpenAIClient
@@ -32,8 +33,10 @@ class LinkedInContentGenerator:
         self.config_path = config_path
         self.model = model
         
-        # Create output directory if it doesn't exist
+        # Create directories for content and images
+        self.images_dir = os.path.join(output_dir, 'images')
         os.makedirs(self.output_dir, exist_ok=True)
+        os.makedirs(self.images_dir, exist_ok=True)
         
         # Load configuration
         self.config = self._load_config()
@@ -57,10 +60,12 @@ class LinkedInContentGenerator:
             logger.error(f"Error loading LinkedIn config: {e}")
             # Return default configuration
             return {
-                "post_types": ["general", "market_update", "sector_focus", "investment_opportunities"],
+                "post_types": ["general", "market_update", "sector_focus", "us_uae_relations", "investment_opportunities"],
                 "hashtags": ["#UAE", "#GCC", "#BusinessIntelligence", "#UAEBusiness", "#GulfBusiness"],
                 "post_frequency": 4,
-                "hashtags_per_post": {"min": 3, "max": 5}
+                "hashtags_per_post": {"min": 3, "max": 5},
+                "include_images": True,
+                "image_style": "natural"
             }
     
     def _generate_system_prompt(self):
@@ -85,7 +90,8 @@ class LinkedInContentGenerator:
             "title": "Post title/hook",
             "body": "Main content with insights",
             "hashtags": ["hashtag1", "hashtag2", ...],
-            "engagement_question": "Question to drive comments"
+            "engagement_question": "Question to drive comments",
+            "image_prompt": "A detailed and specific prompt for generating an image that complements the post content"
         }
         """
     
@@ -101,6 +107,10 @@ class LinkedInContentGenerator:
         {report_content[:2000]}  # Limit to first 2000 chars for context
         
         ADDITIONAL INSTRUCTIONS:
+        - Include a detailed image prompt that will be used to generate a compelling visual for this post
+        - The image prompt should be specific (not generic) and related to the content of the post
+        - For image prompts, focus on UAE/GCC regional imagery, business themes, and relevant visuals
+        - The image prompt should be 2-4 sentences describing a professional business image
         """
         
         # Customize based on post type
@@ -109,30 +119,35 @@ class LinkedInContentGenerator:
             - Focus on general market trends and conditions
             - Highlight key economic indicators
             - Discuss implications for international businesses
+            - For the image prompt, suggest visualizations of market data, financial districts in UAE, or symbols of economic growth
             """
         elif post_type == "sector_focus":
             base_prompt += """
             - Focus on a specific sector mentioned in the report
             - Highlight growth opportunities or challenges
             - Include sector-specific metrics or developments
+            - For the image prompt, suggest an image representing the specific sector being discussed
             """
         elif post_type == "us_uae_relations":
             base_prompt += """
             - Focus on US-UAE business relations
             - Highlight recent developments or opportunities
             - Discuss implications for businesses in both countries
+            - For the image prompt, suggest visuals representing US-UAE cooperation, trade, or diplomatic relations
             """
         elif post_type == "investment_opportunities":
             base_prompt += """
             - Focus on investment opportunities in UAE/GCC
             - Highlight specific projects or sectors with potential
             - Include relevant economic indicators or growth projections
+            - For the image prompt, suggest images of investment themes, development projects, or construction in the UAE
             """
         else:  # general
             base_prompt += """
             - Create a general overview of the key insights
             - Balance between different aspects covered in the report
             - Highlight the most significant findings
+            - For the image prompt, suggest a balanced visual that represents UAE/GCC business landscape
             """
         
         return base_prompt
@@ -174,7 +189,17 @@ class LinkedInContentGenerator:
                 # Parse the JSON response
                 content = response.choices[0].message.content
                 logger.info("LinkedIn post generated successfully with GPT-4o.")
-                return self._format_post(content)
+                
+                # Parse content and generate image if needed
+                post_data = self._parse_post_content(content)
+                
+                # Generate an image for the post if enabled in config
+                if self.config.get("include_images", True) and "image_prompt" in post_data:
+                    image_path = self._generate_image_for_post(post_data["image_prompt"], post_type)
+                    if image_path:
+                        post_data["image_path"] = image_path
+                
+                return self._format_post(post_data)
                 
             except Exception as e:
                 logger.error(f"Error generating LinkedIn post with GPT-4o: {e}")
@@ -195,7 +220,17 @@ class LinkedInContentGenerator:
                     # Parse the JSON response
                     content = response.choices[0].message.content
                     logger.info("LinkedIn post generated successfully with GPT-3.5-Turbo.")
-                    return self._format_post(content)
+                    
+                    # Parse content and generate image if needed
+                    post_data = self._parse_post_content(content)
+                    
+                    # Generate an image for the post if enabled in config
+                    if self.config.get("include_images", True) and "image_prompt" in post_data:
+                        image_path = self._generate_image_for_post(post_data["image_prompt"], post_type)
+                        if image_path:
+                            post_data["image_path"] = image_path
+                    
+                    return self._format_post(post_data)
                     
                 except Exception as e2:
                     logger.error(f"Error generating LinkedIn post with GPT-3.5-Turbo: {e2}")
@@ -205,47 +240,158 @@ class LinkedInContentGenerator:
             logger.error(f"Error generating LinkedIn post: {e}")
             return self._generate_fallback_post(post_type, str(e))
     
-    def _format_post(self, json_content):
-        """Format the JSON response into a complete LinkedIn post."""
+    def _parse_post_content(self, json_content):
+        """Parse the JSON response into a structured format."""
         try:
-            # Parse JSON
-            content = json.loads(json_content)
+            return json.loads(json_content)
+        except json.JSONDecodeError as e:
+            logger.error(f"Error parsing JSON response: {e}")
+            # Try to extract content directly with regex
+            data = {}
             
+            title_match = re.search(r'"title":\s*"([^"]+)"', json_content)
+            body_match = re.search(r'"body":\s*"([^"]+)"', json_content)
+            question_match = re.search(r'"engagement_question":\s*"([^"]+)"', json_content)
+            image_prompt_match = re.search(r'"image_prompt":\s*"([^"]+)"', json_content)
+            
+            data["title"] = title_match.group(1) if title_match else "Business Insight: UAE/GCC Markets"
+            data["body"] = body_match.group(1) if body_match else json_content.replace('\\n', '\n')
+            data["engagement_question"] = question_match.group(1) if question_match else "What are your thoughts on these developments?"
+            data["image_prompt"] = image_prompt_match.group(1) if image_prompt_match else None
+            
+            # Extract hashtags
+            hashtags_match = re.search(r'"hashtags":\s*\[(.*?)\]', json_content)
+            if hashtags_match:
+                hashtags_str = hashtags_match.group(1)
+                hashtags = re.findall(r'"([^"]+)"', hashtags_str)
+                data["hashtags"] = hashtags
+            else:
+                data["hashtags"] = ["#UAEBusiness", "#GCCMarkets", "#BusinessIntelligence"]
+            
+            return data
+    
+    def _generate_image_for_post(self, image_prompt, post_type):
+        """Generate an image for the LinkedIn post using GPT-4o or DALL-E."""
+        try:
+            if not image_prompt:
+                logger.warning("No image prompt provided for image generation.")
+                return None
+                
+            # Enhance the prompt for better results
+            enhanced_prompt = f"Create a professional business image for a LinkedIn post about {post_type} in UAE/GCC markets. {image_prompt} The style should be professional, clean, and suitable for business content. Include UAE/GCC visual elements where appropriate."
+            
+            # Generate a unique filename
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            unique_id = str(uuid.uuid4())[:8]
+            filename = f"linkedin_{post_type}_{timestamp}_{unique_id}.png"
+            image_path = os.path.join(self.images_dir, filename)
+            
+            # Generate the image
+            logger.info(f"Generating image for LinkedIn post with prompt: {image_prompt[:50]}...")
+            result = self.openai_client.generate_image(
+                prompt=enhanced_prompt,
+                size="1024x1024", 
+                quality="standard",
+                style=self.config.get("image_style", "natural"),
+                save_path=image_path
+            )
+            
+            # Handle the new result format from the enhanced image generation
+            if isinstance(result, dict):
+                # Extract the image path or URL from the result dict
+                image_generator = result.get("image_generator", "dall-e")
+                result_data = result.get("result", None)
+                
+                # Log which model was used
+                logger.info(f"Image generated using {image_generator} model")
+                
+                # If we got back a saved path, return it
+                if result_data and os.path.exists(result_data):
+                    logger.info(f"Image generated successfully and saved to {result_data}")
+                    return result_data
+                
+                # Otherwise, result_data might be a URL or base64 data
+                elif result_data:
+                    # If it's the image path we requested, check if it exists
+                    if result_data == image_path and os.path.exists(image_path):
+                        logger.info(f"Image generated successfully and saved to {image_path}")
+                        return image_path
+                    else:
+                        logger.info(f"Image was generated but not saved locally. Using URL or data.")
+                        return result_data
+                else:
+                    logger.warning("Image generation did not return a valid result")
+                    return None
+            else:
+                # Handle the old format for backward compatibility
+                if os.path.exists(image_path):
+                    logger.info(f"Image generated successfully and saved to {image_path}")
+                    return image_path
+                else:
+                    logger.warning("Image was generated but not saved locally.")
+                    return result  # This will be the URL
+                
+        except Exception as e:
+            logger.error(f"Error generating image for post: {str(e)}")
+            return None
+    
+    def _format_post(self, content):
+        """Format the post content into a complete LinkedIn post."""
+        try:
             # Extract fields with fallbacks
+            if isinstance(content, str):
+                # Try to parse as JSON if it's a string
+                try:
+                    content = json.loads(content)
+                except:
+                    # Return as is if not valid JSON
+                    return content
+            
             title = content.get('title', 'Business Insight: UAE/GCC Markets')
             body = content.get('body', 'No content generated.')
             hashtags = content.get('hashtags', ['#UAEBusiness', '#GCCMarkets', '#BusinessIntelligence'])
             question = content.get('engagement_question', 'What are your thoughts on these developments?')
+            image_path = content.get('image_path', None)
             
             # Format hashtags
-            hashtag_text = ' '.join(hashtags)
+            if isinstance(hashtags, list):
+                hashtag_text = ' '.join(hashtags)
+            else:
+                hashtag_text = hashtags
             
             # Combine everything
             formatted_post = f"{title}\n\n{body}\n\n{question}\n\n{hashtag_text}"
             
-            return formatted_post
+            # Create a post object with text and image path
+            post_object = {
+                "text": formatted_post,
+                "image_path": image_path,
+                "metadata": {
+                    "title": title,
+                    "body": body,
+                    "hashtags": hashtags,
+                    "question": question,
+                    "generated_at": datetime.now().isoformat(),
+                }
+            }
             
-        except json.JSONDecodeError as e:
-            logger.error(f"Error parsing JSON response: {e}")
-            # If we can't parse JSON, try to extract content directly
-            try:
-                # Look for title, body, hashtags sections
-                title_match = re.search(r'"title":\s*"([^"]+)"', json_content)
-                body_match = re.search(r'"body":\s*"([^"]+)"', json_content)
-                question_match = re.search(r'"engagement_question":\s*"([^"]+)"', json_content)
+            return post_object
+            
+        except Exception as e:
+            logger.error(f"Error formatting post: {e}")
+            if isinstance(content, dict) and 'image_path' in content:
+                image_path = content['image_path']
+            else:
+                image_path = None
                 
-                title = title_match.group(1) if title_match else "Business Insight: UAE/GCC Markets"
-                body = body_match.group(1) if body_match else json_content.replace('\\n', '\n')
-                question = question_match.group(1) if question_match else "What are your thoughts on these developments?"
-                
-                # Add default hashtags
-                hashtag_text = "#UAEBusiness #GCCMarkets #BusinessIntelligence"
-                
-                return f"{title}\n\n{body}\n\n{question}\n\n{hashtag_text}"
-                
-            except Exception as e2:
-                logger.error(f"Error extracting content from non-JSON response: {e2}")
-                return f"Error formatting LinkedIn post. Raw content:\n\n{json_content}"
+            return {
+                "text": str(content),
+                "image_path": image_path,
+                "metadata": {
+                    "error": str(e),
+                    "generated_at": datetime.now().isoformat(),
+                }
+            }
     
     def _generate_fallback_post(self, post_type="general", error_reason="API limitations"):
         """Generate a fallback LinkedIn post when OpenAI is unavailable."""
@@ -285,25 +431,42 @@ class LinkedInContentGenerator:
         # Add footer explaining the fallback
         body += f"\n\n(Note: This is an automated post generated due to {error_reason}. Full AI-powered insights will resume in our next update.)"
         
-        return f"{title}\n\n{body}\n\n{question}\n\n{hashtags}"
+        # Create the fallback post object
+        fallback_post = {
+            "text": f"{title}\n\n{body}\n\n{question}\n\n{hashtags}",
+            "image_path": None,
+            "metadata": {
+                "title": title,
+                "body": body, 
+                "hashtags": hashtags.split(),
+                "question": question,
+                "generated_at": datetime.now().isoformat(),
+                "fallback_reason": error_reason
+            }
+        }
+        
+        return fallback_post
     
     def save_post(self, post_content, post_type="general"):
-        """Save the generated LinkedIn post to a file."""
+        """Save a LinkedIn post to a file."""
         try:
             if not post_content:
-                logger.warning("No content to save.")
+                logger.error("No post content to save.")
                 return None
                 
-            # Create a timestamp for the filename
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            filename = f"linkedin_{post_type}_{timestamp}.txt"
+            # Create a timestamp-based filename
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"linkedin_{post_type}_{timestamp}.json"
             file_path = os.path.join(self.output_dir, filename)
             
-            # Save the post to file
+            # Save the post content
             with open(file_path, 'w', encoding='utf-8') as f:
-                f.write(post_content)
-            
-            logger.info(f"LinkedIn post saved to {file_path}")
+                if isinstance(post_content, dict):
+                    json.dump(post_content, f, indent=2)
+                else:
+                    f.write(post_content)
+                    
+            logger.info(f"Saved LinkedIn post to {file_path}")
             return file_path
             
         except Exception as e:
@@ -311,58 +474,55 @@ class LinkedInContentGenerator:
             return None
     
     def generate_linkedin_posts(self, report_text=None):
-        """Generate multiple LinkedIn posts based on report text or the latest report.
-        
-        Args:
-            report_text: The text content of the report. If None, will try to find the latest report.
+        """Generate multiple LinkedIn posts of different types."""
+        try:
+            post_types = self.config.get("post_types", ["general", "market_update", "sector_focus"])
+            posts = []
             
-        Returns:
-            str: Formatted markdown text with all the generated LinkedIn posts
-        """
-        logger.info("Generating LinkedIn posts from report text")
-        
-        # Define post types to generate
-        post_types = self.config.get("post_types", [])
-        if isinstance(post_types, list) and all(isinstance(item, dict) for item in post_types):
-            # If post_types is a list of dictionaries, extract the type field
-            post_types = [item["type"] for item in post_types if "type" in item]
-        elif not post_types:
-            # Fallback post types if none in config
-            post_types = ["general", "market_update", "sector_focus", "us_uae_relations"]
-            
-        # Get frequency from config with fallback
-        frequency = self.config.get("post_frequency", 4)
-        if frequency > len(post_types):
-            # Duplicate some post types to meet frequency
-            post_types = post_types * (frequency // len(post_types) + 1)
-        
-        # Take only the number needed
-        post_types = post_types[:frequency]
-        
-        # Generate posts
-        posts = []
-        for post_type in post_types:
-            try:
-                if report_text:
-                    # Generate from provided text directly
+            # If report text is provided, use it directly
+            if report_text:
+                # Generate posts for each type
+                for post_type in post_types:
+                    logger.info(f"Generating {post_type} LinkedIn post from provided text...")
                     post = self._generate_post_from_text(report_text, post_type)
-                else:
-                    # Find latest report file
-                    report_files = self._find_latest_report()
-                    if not report_files:
-                        logger.warning("No report files found and no report text provided.")
-                        continue
+                    if post:
+                        posts.append(post)
+                        # Save the post
+                        self.save_post(post, post_type)
+            else:
+                # Try to find the latest report
+                report_path = self._find_latest_report()
+                if not report_path:
+                    logger.error("No report found for generating LinkedIn posts.")
+                    return None
                     
-                    # Generate post from the report file
-                    post = self.generate_post(report_files[0], post_type)
+                # Generate posts for each type
+                for post_type in post_types:
+                    logger.info(f"Generating {post_type} LinkedIn post from report {report_path}...")
+                    post = self.generate_post(report_path, post_type)
+                    if post:
+                        posts.append(post)
+                        # Save the post
+                        self.save_post(post, post_type)
+            
+            # Format posts to markdown
+            markdown_content = self._format_posts_to_markdown(posts)
+            
+            # Save markdown to file
+            markdown_path = os.path.join(self.output_dir, f"linkedin_posts_{datetime.now().strftime('%Y%m%d')}.md")
+            with open(markdown_path, 'w', encoding='utf-8') as f:
+                f.write(markdown_content)
                 
-                if post:
-                    posts.append((post_type, post))
-            except Exception as e:
-                logger.error(f"Error generating post of type {post_type}: {e}")
-        
-        # Format all posts into markdown
-        return self._format_posts_to_markdown(posts)
+            logger.info(f"Generated {len(posts)} LinkedIn posts and saved to {markdown_path}")
+            
+            return {
+                "posts": posts,
+                "markdown_path": markdown_path
+            }
+                
+        except Exception as e:
+            logger.error(f"Error generating LinkedIn posts: {e}")
+            return None
     
     def _generate_post_from_text(self, report_text, post_type="general"):
         """Generate a LinkedIn post directly from report text."""
@@ -393,7 +553,17 @@ class LinkedInContentGenerator:
                 # Parse the JSON response
                 content = response.choices[0].message.content
                 logger.info(f"LinkedIn post generated successfully with {self.model}.")
-                return self._format_post(content)
+                
+                # Parse content and generate image if needed
+                post_data = self._parse_post_content(content)
+                
+                # Generate an image for the post if enabled in config
+                if self.config.get("include_images", True) and "image_prompt" in post_data:
+                    image_path = self._generate_image_for_post(post_data["image_prompt"], post_type)
+                    if image_path:
+                        post_data["image_path"] = image_path
+                
+                return self._format_post(post_data)
                 
             except Exception as e:
                 logger.error(f"Error generating LinkedIn post with {self.model}: {e}")
@@ -415,7 +585,17 @@ class LinkedInContentGenerator:
                         # Parse the JSON response
                         content = response.choices[0].message.content
                         logger.info("LinkedIn post generated successfully with GPT-3.5-Turbo.")
-                        return self._format_post(content)
+                        
+                        # Parse content and generate image if needed
+                        post_data = self._parse_post_content(content)
+                        
+                        # Generate an image for the post if enabled in config
+                        if self.config.get("include_images", True) and "image_prompt" in post_data:
+                            image_path = self._generate_image_for_post(post_data["image_prompt"], post_type)
+                            if image_path:
+                                post_data["image_path"] = image_path
+                        
+                        return self._format_post(post_data)
                         
                     except Exception as e2:
                         logger.error(f"Error with fallback model: {e2}")
@@ -426,52 +606,83 @@ class LinkedInContentGenerator:
         except Exception as e:
             logger.error(f"Error generating LinkedIn post: {e}")
             return self._generate_fallback_post(post_type, str(e))
-            
+    
     def _find_latest_report(self):
-        """Find the latest report files in the reports directory."""
+        """Find the latest consolidated report to use as a basis."""
         try:
-            report_dir = 'reports'
-            if not os.path.exists(report_dir):
-                logger.warning(f"Reports directory '{report_dir}' not found.")
-                return []
+            # Look in standard report locations
+            reports_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'reports')
+            
+            # Find all markdown files that look like consolidated reports
+            md_files = []
+            for root, _, files in os.walk(reports_dir):
+                for file in files:
+                    if file.startswith('consolidated_report_') and file.endswith('.md'):
+                        md_path = os.path.join(root, file)
+                        md_files.append((md_path, os.path.getmtime(md_path)))
+            
+            # Sort by modification time (newest first)
+            md_files.sort(key=lambda x: x[1], reverse=True)
+            
+            if md_files:
+                latest_report = md_files[0][0]
+                logger.info(f"Found latest report: {latest_report}")
+                return latest_report
+            else:
+                logger.warning("No consolidated reports found.")
+                return None
                 
-            # Look for markdown files that match our naming pattern
-            md_files = [os.path.join(report_dir, f) for f in os.listdir(report_dir) 
-                      if f.endswith('.md') and f.startswith('consolidated_report_')]
-            
-            if not md_files:
-                logger.warning("No report files found.")
-                return []
-            
-            # Sort by creation time (newest first) and return
-            return sorted(md_files, key=os.path.getctime, reverse=True)
-            
         except Exception as e:
             logger.error(f"Error finding latest report: {e}")
-            return []
-            
+            return None
+    
     def _format_posts_to_markdown(self, posts):
-        """Format a list of posts into markdown text.
-        
-        Args:
-            posts: List of tuples (post_type, post_text)
+        """Format a list of posts into a markdown document."""
+        try:
+            if not posts:
+                return "# No LinkedIn Posts Generated\n\nNo posts were generated. Please check the logs for details."
+                
+            markdown = "# Generated LinkedIn Posts\n\n"
+            markdown += f"Generated on: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}\n\n"
             
-        Returns:
-            str: Formatted markdown with all posts
-        """
-        if not posts:
-            return "No LinkedIn posts were generated."
+            for i, post in enumerate(posts):
+                markdown += f"## Post {i+1}\n\n"
+                
+                if isinstance(post, dict):
+                    # Extract metadata
+                    metadata = post.get('metadata', {})
+                    post_type = metadata.get('post_type', f"Type {i+1}")
+                    title = metadata.get('title', 'Untitled')
+                    
+                    # Add title and content
+                    markdown += f"### {title}\n\n"
+                    markdown += "```\n"
+                    markdown += post.get('text', 'No content available.')
+                    markdown += "\n```\n\n"
+                    
+                    # Add image if available
+                    image_path = post.get('image_path')
+                    if image_path:
+                        # Convert to relative path for markdown if possible
+                        try:
+                            rel_path = os.path.relpath(image_path, os.path.dirname(self.output_dir))
+                            markdown += f"![LinkedIn Post Image]({rel_path})\n\n"
+                        except:
+                            markdown += f"Image available at: {image_path}\n\n"
+                else:
+                    # If post is just a string
+                    markdown += "```\n"
+                    markdown += str(post)
+                    markdown += "\n```\n\n"
+                    
+                # Add separator
+                markdown += "---\n\n"
+                
+            return markdown
             
-        formatted = "# LinkedIn Content\n\n"
-        
-        for i, (post_type, post_text) in enumerate(posts):
-            formatted += f"## Post {i+1}: {post_type.replace('_', ' ').title()}\n\n"
-            formatted += "```\n"
-            formatted += post_text
-            formatted += "\n```\n\n"
-            formatted += "---\n\n"
-            
-        return formatted
+        except Exception as e:
+            logger.error(f"Error formatting posts to markdown: {e}")
+            return f"# Error Formatting Posts\n\nAn error occurred: {str(e)}\n\nRaw posts: {str(posts)}"
 
 # Example usage
 if __name__ == "__main__":

@@ -8,6 +8,9 @@ from dotenv import load_dotenv
 import logging
 import re
 import urllib3
+import time
+import csv
+from urllib.parse import urljoin
 
 # Load environment variables
 load_dotenv()
@@ -22,6 +25,14 @@ logger = logging.getLogger("NewsCollector")
 # Suppress SSL verification warnings when necessary
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+# Import our robust API utilities if available
+try:
+    from src.utils.api_utils import make_api_request, robust_api_request
+    API_UTILS_AVAILABLE = True
+except ImportError:
+    API_UTILS_AVAILABLE = False
+    import requests  # Fallback to regular requests
+
 class GCCBusinessNewsCollector:
     """
     Collects business news from UAE/GCC sources using requests and BeautifulSoup.
@@ -31,14 +42,22 @@ class GCCBusinessNewsCollector:
         self.config_path = config_path
         self.sources = self._load_sources()
         self.headers = {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.9',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
             'Connection': 'keep-alive',
             'Upgrade-Insecure-Requests': '1',
             'Cache-Control': 'max-age=0'
         }
         
+        # Output directory
+        self.data_dir = os.path.join('data', 'news')
+        os.makedirs(self.data_dir, exist_ok=True)
+
+        # Initialize cache if API utils is not available
+        if not API_UTILS_AVAILABLE:
+            self._request_cache = {}
+
     def _load_sources(self):
         """Load news sources from the configuration file."""
         try:
@@ -155,6 +174,71 @@ class GCCBusinessNewsCollector:
             logger.error(f"Error in news collection: {e}")
             return []
     
+    def _make_request(self, url, method='get', headers=None, timeout=30, **kwargs):
+        """
+        Make a robust HTTP request with retries, error handling, and caching
+        """
+        if headers is None:
+            headers = self.headers
+            
+        if API_UTILS_AVAILABLE:
+            # Use our robust API utilities
+            return make_api_request(
+                url=url, 
+                method=method, 
+                headers=headers, 
+                timeout=timeout, 
+                **kwargs
+            )
+        else:
+            # Simple caching implementation
+            cache_key = f"{method}:{url}"
+            if cache_key in self._request_cache:
+                cache_time, cache_data = self._request_cache[cache_key]
+                # Cache valid for 1 hour
+                if time.time() - cache_time < 3600:
+                    logger.debug(f"Using cached response for {url}")
+                    return cache_data
+            
+            # Fallback to regular requests with basic retry
+            max_retries = 3
+            retry_count = 0
+            while retry_count <= max_retries:
+                try:
+                    if retry_count > 0:
+                        logger.info(f"Retry attempt {retry_count} for {url}")
+                        time.sleep(retry_count * 2)  # Simple backoff
+                    
+                    if method.lower() == 'get':
+                        response = requests.get(url, headers=headers, timeout=timeout, **kwargs)
+                    elif method.lower() == 'post':
+                        response = requests.post(url, headers=headers, timeout=timeout, **kwargs)
+                    else:
+                        raise ValueError(f"Unsupported HTTP method: {method}")
+                    
+                    response.raise_for_status()
+                    
+                    # For non-JSON responses, return a dict with text and status
+                    try:
+                        result = response.json()
+                    except:
+                        result = {
+                            'text': response.text,
+                            'status_code': response.status_code
+                        }
+                    
+                    # Cache successful response
+                    self._request_cache[cache_key] = (time.time(), result)
+                    return result
+                    
+                except (requests.exceptions.RequestException, requests.exceptions.Timeout, 
+                         requests.exceptions.ConnectionError) as e:
+                    retry_count += 1
+                    if retry_count > max_retries:
+                        logger.error(f"Failed to fetch {url} after {max_retries} retries: {e}")
+                        return {'error': str(e)}
+                    logger.warning(f"Error fetching {url}: {e}. Retrying...")
+    
     def _collect_from_source(self, source):
         """Collect news from a specific source using requests and BeautifulSoup."""
         articles = []
@@ -162,15 +246,23 @@ class GCCBusinessNewsCollector:
             url = source['url']
             pattern = source['crawl_pattern']
             
-            # Fetch the page
+            # Fetch the page using our robust request function
             logger.info(f"Fetching {url}...")
-            response = requests.get(url, headers=self.headers, timeout=30)
-            if response.status_code != 200:
-                logger.error(f"Failed to fetch {url}: Status code {response.status_code}")
+            result = self._make_request(url, verify=False)
+            
+            # Check for errors
+            if 'error' in result:
+                logger.error(f"Failed to fetch {url}: {result['error']}")
+                return articles
+                
+            # Get response text
+            response_text = result.get('text', '')
+            if not response_text:
+                logger.error(f"No content received from {url}")
                 return articles
                 
             # Parse with BeautifulSoup
-            soup = BeautifulSoup(response.text, 'html.parser')
+            soup = BeautifulSoup(response_text, 'html.parser')
             
             # Find all article elements
             article_elements = soup.select(pattern['article_selector'])
@@ -338,14 +430,39 @@ class GCCBusinessNewsCollector:
         try:
             logger.info(f"Fetching RSS feed from {url}...")
             
-            # Parse the RSS feed
-            feed = feedparser.parse(url)
+            # Use feedparser which handles the HTTP request internally
+            # We wrap this with our retry mechanism
+            feed = None
+            retry_count = 0
+            max_retries = 3
             
-            # Check if feed parsing was successful
-            if not feed or not hasattr(feed, 'entries'):
-                logger.warning(f"Failed to parse RSS feed from {url}")
-                return articles
-                
+            while retry_count <= max_retries and not feed:
+                try:
+                    if retry_count > 0:
+                        logger.info(f"Retry attempt {retry_count} for RSS feed {url}")
+                        time.sleep(retry_count * 2)  # Simple backoff
+                    
+                    feed = feedparser.parse(url)
+                    
+                    # Check if feed parsing was successful
+                    if not feed or not hasattr(feed, 'entries') or not feed.entries:
+                        if retry_count < max_retries:
+                            logger.warning(f"Failed to parse RSS feed from {url}, retrying...")
+                            retry_count += 1
+                            feed = None  # Reset to retry
+                            continue
+                        else:
+                            logger.warning(f"Failed to parse RSS feed from {url} after {max_retries} attempts")
+                            return articles
+                except Exception as e:
+                    if retry_count < max_retries:
+                        logger.warning(f"Error parsing RSS feed {url}: {e}, retrying...")
+                        retry_count += 1
+                        continue
+                    else:
+                        logger.error(f"Failed to parse RSS feed {url} after {max_retries} attempts: {e}")
+                        return articles
+            
             # Calculate the cutoff date
             cutoff_date = datetime.now() - timedelta(days=days_back)
             
@@ -446,15 +563,30 @@ class GCCBusinessNewsCollector:
                 else:
                     url += f"?apiKey={api_key}&from={cutoff_str}&pageSize={limit}"
             
-            # Make the API request
-            response = requests.get(url, headers=self.headers, timeout=30)
+            # Use our robust request function
+            result = self._make_request(url, verify=False)
             
-            if response.status_code != 200:
-                logger.warning(f"API request failed: {response.status_code} - {response.text}")
+            # Check for errors
+            if 'error' in result:
+                logger.error(f"Failed to fetch API {url}: {result['error']}")
                 return articles
                 
-            # Parse the response
-            data = response.json()
+            # Check if we have JSON data
+            if not isinstance(result, dict) or ('text' in result and 'status_code' in result):
+                # If we got a text response instead of JSON
+                if 'status_code' in result and result['status_code'] != 200:
+                    logger.warning(f"API request failed: {result['status_code']}")
+                    return articles
+                    
+                # Try to parse the text as JSON
+                try:
+                    data = json.loads(result.get('text', '{}'))
+                except:
+                    logger.error(f"Failed to parse API response as JSON")
+                    return articles
+            else:
+                # We already have parsed JSON
+                data = result
             
             # Different APIs have different formats, handle common ones
             # NewsAPI format
@@ -521,19 +653,27 @@ class GCCBusinessNewsCollector:
             summary_selector = selectors.get('summary_selector', '.summary, .description, p')
             date_selector = selectors.get('date_selector', '.date, .time, time')
             
-            # Fetch the page with SSL verification disabled for problematic sites
-            try:
-                response = requests.get(url, headers=self.headers, timeout=30)
-            except requests.exceptions.SSLError:
-                logger.warning(f"SSL error for {url}, trying with verification disabled")
-                response = requests.get(url, headers=self.headers, timeout=30, verify=False)
+            # Fetch the page with our robust request function
+            result = self._make_request(url, verify=False)
             
-            if response.status_code != 200:
-                logger.warning(f"Failed to fetch HTML: {response.status_code}")
+            # Check for errors
+            if 'error' in result:
+                logger.error(f"Failed to fetch HTML from {url}: {result['error']}")
+                return articles
+                
+            # Get response text
+            response_text = result.get('text', '')
+            if not response_text:
+                logger.error(f"No content received from {url}")
+                return articles
+                
+            # Check status code
+            if 'status_code' in result and result['status_code'] != 200:
+                logger.warning(f"Failed to fetch HTML: {result['status_code']}")
                 return articles
                 
             # Parse with BeautifulSoup
-            soup = BeautifulSoup(response.text, 'html.parser')
+            soup = BeautifulSoup(response_text, 'html.parser')
             
             # Find all article elements
             article_elements = soup.select(article_selector)

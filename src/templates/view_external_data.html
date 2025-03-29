@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View File - {{ file.filename }} - Market Intelligence Platform</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            padding-top: 20px;
+            padding-bottom: 20px;
+            background-color: #f8f9fa;
+        }
+        .dashboard-card {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            margin-bottom: 20px;
+            padding: 20px;
+        }
+        .file-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .file-icon {
+            font-size: 32px;
+            margin-right: 15px;
+        }
+        .file-meta {
+            font-size: 0.9rem;
+            color: #6c757d;
+            margin-top: 10px;
+        }
+        .file-content {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 20px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .table-view {
+            width: 100%;
+            overflow-x: auto;
+        }
+        table.content-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        table.content-table th,
+        table.content-table td {
+            border: 1px solid #dee2e6;
+            padding: 8px 12px;
+        }
+        table.content-table thead th {
+            background-color: #f2f2f2;
+            position: sticky;
+            top: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="mb-4">
+            <div class="row">
+                <div class="col-md-6">
+                    <h1>Market Intelligence Platform</h1>
+                </div>
+                <div class="col-md-6 text-end">
+                    <a href="/" class="btn btn-outline-primary me-2">Dashboard</a>
+                    <a href="/clients" class="btn btn-outline-primary me-2">Clients</a>
+                    <a href="/linkedin" class="btn btn-outline-primary">LinkedIn</a>
+                </div>
+            </div>
+        </header>
+
+        <div class="row">
+            <div class="col-md-3">
+                <div class="dashboard-card">
+                    <h5>Client: {{ client.name }}</h5>
+                    <div class="d-grid gap-2 mt-3">
+                        <a href="/clients/{{ client.id }}" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-arrow-left"></i> Back to Client
+                        </a>
+                        <a href="/clients/{{ client.id }}/external_data" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-files"></i> All Files
+                        </a>
+                        <a href="/clients/{{ client.id }}/external_data/{{ file.id }}/generate_report" class="btn btn-success btn-sm">
+                            <i class="bi bi-file-earmark-text"></i> Generate Report
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-9">
+                <div class="dashboard-card">
+                    <div class="file-header">
+                        {% if file.filename.endswith('.pdf') %}
+                            <i class="bi bi-file-earmark-pdf file-icon text-danger"></i>
+                        {% elif file.filename.endswith('.docx') %}
+                            <i class="bi bi-file-earmark-word file-icon text-primary"></i>
+                        {% elif file.filename.endswith('.txt') %}
+                            <i class="bi bi-file-earmark-text file-icon text-secondary"></i>
+                        {% elif file.filename.endswith('.csv') %}
+                            <i class="bi bi-file-earmark-spreadsheet file-icon text-success"></i>
+                        {% elif file.filename.endswith('.xlsx') or file.filename.endswith('.xls') %}
+                            <i class="bi bi-file-earmark-excel file-icon text-success"></i>
+                        {% else %}
+                            <i class="bi bi-file-earmark file-icon"></i>
+                        {% endif %}
+                        
+                        <div>
+                            <h2 class="mb-0">{{ file.filename }}</h2>
+                            <div class="file-meta">
+                                <div>Uploaded: {{ file.upload_date }}</div>
+                                {% if file.metadata %}
+                                    <div>
+                                        {% if file.metadata.pages %}Pages: {{ file.metadata.pages }}{% endif %}
+                                        {% if file.metadata.words %}Words: {{ file.metadata.words }}{% endif %}
+                                        {% if file.metadata.rows %}Rows: {{ file.metadata.rows }}{% endif %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if file.description %}
+                        <div class="mb-4">
+                            <strong>Description:</strong> {{ file.description }}
+                        </div>
+                    {% endif %}
+                    
+                    <h4>File Content</h4>
+                    
+                    {% if file.filename.endswith('.csv') or file.filename.endswith('.xlsx') or file.filename.endswith('.xls') %}
+                        <!-- Tabular data view -->
+                        <div class="table-view">
+                            <table class="content-table">
+                                {% if content_lines %}
+                                    {% set header_line = content_lines[0] %}
+                                    {% if header_line.startswith('#') %}
+                                        {% set header_columns = header_line[1:].split('|') %}
+                                        <thead>
+                                            <tr>
+                                                {% for column in header_columns %}
+                                                    <th>{{ column.strip() }}</th>
+                                                {% endfor %}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for line in content_lines[2:] %}
+                                                {% if not line.startswith('##') and line.strip() %}
+                                                    <tr>
+                                                        {% set columns = line.split('|') %}
+                                                        {% for column in columns %}
+                                                            <td>{{ column.strip() }}</td>
+                                                        {% endfor %}
+                                                    </tr>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </tbody>
+                                    {% endif %}
+                                {% endif %}
+                            </table>
+                        </div>
+                        
+                        {% if content_lines %}
+                            {% for line in content_lines %}
+                                {% if line.startswith('##') %}
+                                    <h5 class="mt-4">{{ line[2:].strip() }}</h5>
+                                {% elif line.startswith('...') %}
+                                    <div class="text-muted my-3">{{ line }}</div>
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
+                    {% else %}
+                        <!-- Text content view -->
+                        <div class="file-content">{{ content }}</div>
+                    {% endif %}
+                    
+                    <div class="mt-4 d-flex justify-content-between">
+                        <a href="/clients/{{ client.id }}/external_data" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Back to Files
+                        </a>
+                        <div>
+                            <a href="/clients/{{ client.id }}/external_data/{{ file.id }}/generate_report" class="btn btn-success">
+                                <i class="bi bi-file-earmark-text"></i> Generate Report
+                            </a>
+                            <form action="/clients/{{ client.id }}/external_data/{{ file.id }}/delete" method="POST" class="d-inline ms-2" onsubmit="return confirm('Are you sure you want to delete this file?');">
+                                <button type="submit" class="btn btn-outline-danger">
+                                    <i class="bi bi-trash"></i> Delete
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html> 

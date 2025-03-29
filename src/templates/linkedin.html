@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LinkedIn Content - Market Intelligence Platform</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            padding-top: 20px;
+            padding-bottom: 20px;
+            background-color: #f8f9fa;
+        }
+        .dashboard-card {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            margin-bottom: 20px;
+            padding: 20px;
+        }
+        .post-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            transition: transform 0.2s;
+        }
+        .post-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .post-header {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+        .post-client {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        .post-date {
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+        .post-source {
+            font-size: 0.85rem;
+            background-color: #e9ecef;
+            padding: 2px 8px;
+            border-radius: 12px;
+            margin-left: 10px;
+        }
+        .post-content {
+            white-space: pre-line;
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        .post-hashtags {
+            color: #0d6efd;
+            margin-bottom: 15px;
+        }
+        .post-image {
+            width: 100%;
+            max-height: 300px;
+            object-fit: contain;
+            margin-bottom: 15px;
+            border-radius: 5px;
+        }
+        .loading {
+            display: none;
+            margin-top: 10px;
+        }
+        .tone-badge {
+            font-size: 0.8rem;
+            padding: 3px 8px;
+            border-radius: 12px;
+            margin-left: 10px;
+        }
+        .tone-professional {
+            background-color: #cfe2ff;
+            color: #084298;
+        }
+        .tone-casual {
+            background-color: #d1e7dd;
+            color: #0a3622;
+        }
+        .tone-engaging {
+            background-color: #fff3cd;
+            color: #664d03;
+        }
+        .filters {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="mb-4">
+            <div class="row">
+                <div class="col-md-6">
+                    <h1>Market Intelligence Platform</h1>
+                </div>
+                <div class="col-md-6 text-end">
+                    <a href="/" class="btn btn-outline-primary me-2">Dashboard</a>
+                    <a href="/clients" class="btn btn-outline-primary me-2">Clients</a>
+                    <a href="/linkedin" class="btn btn-outline-primary active">LinkedIn</a>
+                </div>
+            </div>
+        </header>
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="dashboard-card">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h2>LinkedIn Content</h2>
+                        <div>
+                            <a href="/linkedin/new" class="btn btn-primary">Create New Post</a>
+                        </div>
+                    </div>
+                    
+                    <div class="filters">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label for="client-filter" class="form-label">Filter by Client</label>
+                                <select class="form-select" id="client-filter">
+                                    <option value="">All Clients</option>
+                                    {% for client in clients %}
+                                    <option value="{{ client.id }}">{{ client.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="date-filter" class="form-label">Filter by Date</label>
+                                <select class="form-select" id="date-filter">
+                                    <option value="">All Dates</option>
+                                    <option value="today">Today</option>
+                                    <option value="week">This Week</option>
+                                    <option value="month">This Month</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="tone-filter" class="form-label">Filter by Tone</label>
+                                <select class="form-select" id="tone-filter">
+                                    <option value="">All Tones</option>
+                                    <option value="professional">Professional</option>
+                                    <option value="casual">Casual</option>
+                                    <option value="engaging">Engaging</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if posts %}
+                    <div class="row" id="posts-container">
+                        {% for post in posts %}
+                        <div class="col-md-6 post-item" 
+                             data-client="{{ post.client_id }}" 
+                             data-date="{{ post.date }}" 
+                             data-tone="{{ post.tone }}">
+                            <div class="post-card">
+                                <div class="post-header">
+                                    <div>
+                                        <div class="post-client">{{ post.client_name }}</div>
+                                        <div class="post-date">{{ post.date }}</div>
+                                    </div>
+                                    <span class="ms-auto post-source">{{ post.source_type }}</span>
+                                    <span class="tone-badge tone-{{ post.tone }}">{{ post.tone|title }}</span>
+                                </div>
+                                
+                                {% if post.image_url %}
+                                <img src="{{ post.image_url }}" class="post-image" alt="LinkedIn post image">
+                                {% endif %}
+                                
+                                <div class="post-content">{{ post.content }}</div>
+                                <div class="post-hashtags">{{ post.hashtags }}</div>
+                                
+                                <div class="d-flex justify-content-between">
+                                    <button class="btn btn-sm btn-outline-primary copy-btn" 
+                                            data-content="{{ post.content }}" 
+                                            data-hashtags="{{ post.hashtags }}">Copy Text</button>
+                                    
+                                    <div>
+                                        <a href="/linkedin/{{ post.id }}/edit" class="btn btn-sm btn-outline-secondary">Edit</a>
+                                        <a href="/linkedin/{{ post.id }}/delete" class="btn btn-sm btn-outline-danger">Delete</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info text-center">
+                        <h4>No LinkedIn posts found</h4>
+                        <p>Create your first LinkedIn post by selecting a client and generating content from their reports or articles.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div id="loading" class="loading text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p id="loading-text">Processing...</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const clientFilter = document.getElementById('client-filter');
+            const dateFilter = document.getElementById('date-filter');
+            const toneFilter = document.getElementById('tone-filter');
+            const postsContainer = document.getElementById('posts-container');
+            const copyButtons = document.querySelectorAll('.copy-btn');
+            
+            // Filter posts
+            function filterPosts() {
+                const clientValue = clientFilter.value;
+                const dateValue = dateFilter.value;
+                const toneValue = toneFilter.value;
+                
+                const posts = document.querySelectorAll('.post-item');
+                let visibleCount = 0;
+                
+                posts.forEach(post => {
+                    let shouldShow = true;
+                    
+                    if (clientValue && post.getAttribute('data-client') !== clientValue) {
+                        shouldShow = false;
+                    }
+                    
+                    if (dateValue) {
+                        const postDate = new Date(post.getAttribute('data-date'));
+                        const today = new Date();
+                        
+                        if (dateValue === 'today') {
+                            if (postDate.toDateString() !== today.toDateString()) {
+                                shouldShow = false;
+                            }
+                        } else if (dateValue === 'week') {
+                            const weekAgo = new Date();
+                            weekAgo.setDate(today.getDate() - 7);
+                            if (postDate < weekAgo) {
+                                shouldShow = false;
+                            }
+                        } else if (dateValue === 'month') {
+                            const monthAgo = new Date();
+                            monthAgo.setMonth(today.getMonth() - 1);
+                            if (postDate < monthAgo) {
+                                shouldShow = false;
+                            }
+                        }
+                    }
+                    
+                    if (toneValue && post.getAttribute('data-tone') !== toneValue) {
+                        shouldShow = false;
+                    }
+                    
+                    post.style.display = shouldShow ? 'block' : 'none';
+                    if (shouldShow) visibleCount++;
+                });
+                
+                // Show message if no posts match filters
+                if (visibleCount === 0 && posts.length > 0) {
+                    if (!document.getElementById('no-matches-message')) {
+                        const noMatches = document.createElement('div');
+                        noMatches.id = 'no-matches-message';
+                        noMatches.className = 'col-12 alert alert-info text-center';
+                        noMatches.innerHTML = '<h4>No posts match your filters</h4><p>Try adjusting your filter criteria.</p>';
+                        postsContainer.appendChild(noMatches);
+                    }
+                } else {
+                    const noMatches = document.getElementById('no-matches-message');
+                    if (noMatches) noMatches.remove();
+                }
+            }
+            
+            // Add event listeners to filters
+            clientFilter.addEventListener('change', filterPosts);
+            dateFilter.addEventListener('change', filterPosts);
+            toneFilter.addEventListener('change', filterPosts);
+            
+            // Copy post content to clipboard
+            copyButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const content = this.getAttribute('data-content');
+                    const hashtags = this.getAttribute('data-hashtags');
+                    const textToCopy = content + '\n\n' + hashtags;
+                    
+                    navigator.clipboard.writeText(textToCopy).then(() => {
+                        // Change button text temporarily
+                        const originalText = this.textContent;
+                        this.textContent = 'Copied!';
+                        this.classList.remove('btn-outline-primary');
+                        this.classList.add('btn-success');
+                        
+                        setTimeout(() => {
+                            this.textContent = originalText;
+                            this.classList.remove('btn-success');
+                            this.classList.add('btn-outline-primary');
+                        }, 2000);
+                    }).catch(err => {
+                        console.error('Failed to copy text: ', err);
+                        alert('Failed to copy text to clipboard');
+                    });
+                });
+            });
+        });
+    </script>
+</body>
+</html> 

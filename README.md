@@ -1,38 +1,41 @@
 # Market Intelligence Platform
 
-A comprehensive platform for monitoring, analyzing, and generating insights from external data sources to inform business decisions.
+A comprehensive platform for gathering market intelligence, generating client-specific reports, and creating LinkedIn content.
 
 ## Features
 
-- **Automated Data Collection**: Crawl and extract content from various web sources.
-- **Client-Specific Monitoring**: Track topics relevant to specific clients or business areas.
-- **LLM-Powered Summaries**: Automatically generate concise article summaries using OpenAI's language models.
-- **Intelligent Report Generation**: Create daily, weekly, and monthly reports tailored to each client's interests.
-- **LinkedIn Content Creation**: Generate engaging LinkedIn posts based on the collected data.
-- **Web Dashboard**: Access all features through a modern web interface.
+- **Web Dashboard**: Intuitive web interface for managing clients, reports, and content
+- **Automated Crawling**: Collect articles from various sources based on client interests
+- **AI-Generated Reports**: Generate personalized market intelligence reports using GPT-4
+- **Document Processing**: Upload and analyze PDF, DOCX, TXT, CSV, and XLSX files
+- **LinkedIn Content Generation**: Create professional LinkedIn posts from reports and articles
+- **AI Chatbot**: Ask questions about clients, reports, and market data
 
-## LLM-Powered Article Summarization
+## Project Structure
 
-The platform leverages OpenAI's GPT models to automatically generate summaries of crawled articles. This feature enables:
+```
+src/
+├── crawler.py                  # Article crawling functionality
+├── dashboard.py                # Flask web dashboard
+├── document_processor.py       # External file processing
+├── report_generator.py         # AI report generation
+├── linkedin_generator.py       # LinkedIn content creation
+├── chatbot_ai.py               # AI chatbot functionality
+├── models/
+│   └── client_model.py         # Client data management
+├── utils/
+│   └── redis_cache.py          # Redis cache utilities
+├── templates/                  # HTML templates
+├── static/                     # Static assets
+└── uploads/                    # Uploaded files storage
+```
 
-- **Real-time Summarization**: Articles are summarized immediately upon crawling.
-- **Batch Processing**: Run scheduled jobs to summarize backlogged articles.
-- **Quality Control**: Regenerate or manually edit summaries as needed.
-- **API Access**: Integrate summaries into other workflows via the API.
-
-### How It Works
-
-1. When an article is crawled, the platform extracts its content.
-2. The content is sent to OpenAI's API with a prompt specifically designed for summarization.
-3. The generated summary is stored with the article and indexed for quick retrieval.
-4. Summaries are used in reports, LinkedIn posts, and displayed in the dashboard.
-
-## Setup and Installation
+## Setup
 
 ### Prerequisites
 
-- Python 3.9 or higher
-- Redis for data storage
+- Python 3.8+
+- Redis server
 - OpenAI API key
 
 ### Installation
@@ -43,98 +46,73 @@ The platform leverages OpenAI's GPT models to automatically generate summaries o
    cd market-intelligence-platform
    ```
 
-2. Create and activate a virtual environment:
+2. Create a virtual environment and install dependencies:
    ```
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-3. Install dependencies:
-   ```
    pip install -r requirements.txt
    ```
 
-4. Copy the example environment file and edit it:
+3. Create a `.env` file with the following variables:
    ```
-   cp .env.example .env
-   # Edit .env with your API keys and settings
+   OPENAI_API_KEY=your_openai_api_key
+   REDIS_HOST=localhost
+   REDIS_PORT=6379
+   REDIS_PASSWORD=your_redis_password_if_any
+   FLASK_SECRET_KEY=your_random_secret_key
    ```
 
-5. Initialize the system:
+4. Start the Redis server:
    ```
-   python -m src.main setup
+   redis-server
+   ```
+
+5. Run the application:
+   ```
+   python src/dashboard.py
+   ```
+
+6. Open your browser and navigate to:
+   ```
+   http://localhost:3000
    ```
 
 ## Usage
 
-### Command Line Interface
+### Managing Clients
 
-The platform provides a command-line interface for various operations:
+1. Create a new client with their industry and interests
+2. Add sources to crawl for articles
+3. Update client details as needed
 
-```
-# Start the web server
-python -m src.main web
+### Generating Reports
 
-# Crawl all sources
-python -m src.main crawl --all
+1. Trigger a crawl to collect latest articles
+2. Generate a report based on collected articles
+3. View report history and export as needed
 
-# Auto-summarize articles
-python -m src.main summarize --limit 20
+### Working with External Data
 
-# Generate a report
-python -m src.main report --client-id CLIENT_ID --type daily
+1. Upload external files (PDF, DOCX, TXT, CSV, XLSX)
+2. View file content and metadata
+3. Generate reports based on uploaded files
 
-# Generate LinkedIn content
-python -m src.main linkedin --client-id CLIENT_ID
-```
+### Creating LinkedIn Content
 
-### Web Dashboard
+1. Generate LinkedIn posts from reports or articles
+2. Customize the tone (professional, casual, engaging)
+3. Include AI-generated images if desired
 
-Access the web dashboard at http://localhost:5000 after starting the web server.
+### Using the AI Chatbot
 
-## Configuration
-
-### Auto-Summarization Settings
-
-Configure the summarization behavior in `.env`:
-
-```
-# OpenAI API Settings
-OPENAI_API_KEY=your_api_key
-OPENAI_MODEL=gpt-3.5-turbo  # or gpt-4 for higher quality
-
-# Summarization Settings
-MAX_SUMMARY_LENGTH=300
-SUMMARIZE_ON_CRAWL=true
-```
-
-### Scheduling Tasks
-
-Set up cron jobs for regular execution:
-
-```
-# Set up all cron jobs (summarization, reports, crawling)
-python -m src.utils.setup_cron --task all --interval hourly
-```
-
-## API Reference
-
-The platform provides a RESTful API for integration with other systems:
-
-```
-# Get a list of articles
-GET /api/articles
-
-# Get a specific article
-GET /api/articles/{article_id}
-
-# Generate a summary for an article
-POST /api/articles/{article_id}/summarize
-
-# Generate summaries in batch
-POST /api/articles/summarize-batch
-```
+1. Ask questions about client data, reports, and market trends
+2. Get AI-generated responses with source citations
+3. Use suggested follow-up questions for deeper insights
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+[MIT License](LICENSE)
+
+## Contact
+
+Your Name - your.email@example.com 

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reports - {{ client.name }} - Market Intelligence Platform</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            padding-top: 20px;
+            padding-bottom: 20px;
+            background-color: #f8f9fa;
+        }
+        .dashboard-card {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            margin-bottom: 20px;
+            padding: 20px;
+        }
+        .report-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .report-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .report-date {
+            font-size: 0.9rem;
+            color: #6c757d;
+            margin-bottom: 10px;
+        }
+        .report-preview {
+            margin-top: 15px;
+            margin-bottom: 15px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            max-height: 150px;
+            overflow: hidden;
+            position: relative;
+        }
+        .report-preview::after {
+            content: "";
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 50px;
+            background: linear-gradient(transparent, #f8f9fa);
+        }
+        .report-stats {
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+        .loading {
+            display: none;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="mb-4">
+            <div class="row">
+                <div class="col-md-6">
+                    <h1>Market Intelligence Platform</h1>
+                </div>
+                <div class="col-md-6 text-end">
+                    <a href="/" class="btn btn-outline-primary me-2">Dashboard</a>
+                    <a href="/clients" class="btn btn-outline-primary me-2">Clients</a>
+                    <a href="/linkedin" class="btn btn-outline-primary">LinkedIn</a>
+                </div>
+            </div>
+        </header>
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="dashboard-card">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div>
+                            <h2>Reports for {{ client.name }}</h2>
+                            <div class="text-muted">{{ reports|length }} reports found</div>
+                        </div>
+                        <div>
+                            <a href="/clients/{{ client.id }}" class="btn btn-outline-secondary me-2">
+                                Back to Client
+                            </a>
+                            <button id="generate-report-btn" class="btn btn-primary">
+                                Generate New Report
+                            </button>
+                        </div>
+                    </div>
+                    
+                    {% if reports %}
+                    <div class="row">
+                        {% for report in reports %}
+                        <div class="col-md-6 mb-4">
+                            <div class="report-card">
+                                <h4>Intelligence Report</h4>
+                                <div class="report-date">Generated: {{ report.date }}</div>
+                                
+                                <div class="report-preview">
+                                    {{ report.summary | safe }}
+                                </div>
+                                
+                                <div class="report-stats mb-3">
+                                    <span class="badge bg-info text-dark">{{ report.articles_count }} articles</span>
+                                    <span class="badge bg-secondary">{{ report.topics_count }} topics</span>
+                                </div>
+                                
+                                <div class="d-flex justify-content-between">
+                                    <a href="/clients/{{ client.id }}/reports/{{ report.id }}" class="btn btn-outline-primary">
+                                        View Full Report
+                                    </a>
+                                    <div>
+                                        <a href="/clients/{{ client.id }}/reports/{{ report.id }}/linkedin" class="btn btn-outline-info">
+                                            Create LinkedIn Post
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info text-center">
+                        <h4>No reports found</h4>
+                        <p>Generate your first intelligence report for {{ client.name }} using the button above.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div id="loading" class="loading text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p id="loading-text">Processing...</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const generateReportBtn = document.getElementById('generate-report-btn');
+            const loading = document.getElementById('loading');
+            const loadingText = document.getElementById('loading-text');
+            
+            // Format report previews with Markdown
+            const reportPreviews = document.querySelectorAll('.report-preview');
+            reportPreviews.forEach(preview => {
+                if (preview.textContent.trim()) {
+                    preview.innerHTML = marked.parse(preview.textContent);
+                }
+            });
+            
+            // Generate report button
+            if (generateReportBtn) {
+                generateReportBtn.addEventListener('click', function() {
+                    if (!confirm('Generate a new intelligence report for {{ client.name }}?')) {
+                        return;
+                    }
+                    
+                    loading.style.display = 'block';
+                    loadingText.textContent = 'Generating report...';
+                    
+                    fetch(`/clients/{{ client.id }}/generate-report`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: 'force_crawl=false'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert(data.message || 'Report generated');
+                        location.reload();
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Error generating report');
+                        loading.style.display = 'none';
+                    });
+                });
+            }
+        });
+    </script>
+</body>
+</html> 

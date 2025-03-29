@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report - {{ client.name }} - Market Intelligence Platform</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            padding-top: 20px;
+            padding-bottom: 20px;
+            background-color: #f8f9fa;
+        }
+        .dashboard-card {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            margin-bottom: 20px;
+            padding: 20px;
+        }
+        .report-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 5px;
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
+        .report-content h1,
+        .report-content h2,
+        .report-content h3 {
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .report-content h1 {
+            font-size: 2rem;
+            border-bottom: 1px solid #dee2e6;
+            padding-bottom: 0.5rem;
+        }
+        .report-content h2 {
+            font-size: 1.75rem;
+        }
+        .report-content h3 {
+            font-size: 1.5rem;
+        }
+        .report-content ul,
+        .report-content ol {
+            margin-bottom: 1rem;
+        }
+        .report-content blockquote {
+            border-left: 4px solid #dee2e6;
+            padding-left: 1rem;
+            color: #6c757d;
+            font-style: italic;
+            margin-bottom: 1rem;
+        }
+        .status-info {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+        .report-actions {
+            margin-top: 20px;
+            margin-bottom: 30px;
+        }
+        .loading {
+            display: none;
+            margin-top: 10px;
+        }
+        .article-ref {
+            font-size: 0.85rem;
+            color: #6c757d;
+            margin-top: 10px;
+        }
+        .print-header, .print-footer {
+            display: none;
+        }
+        @media print {
+            body {
+                background-color: white;
+                padding: 0;
+                margin: 0;
+            }
+            .dashboard-card {
+                box-shadow: none;
+                padding: 0;
+                margin: 0;
+            }
+            .report-content {
+                padding: 0;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .print-header, .print-footer {
+                display: block;
+                text-align: center;
+                margin: 20px 0;
+            }
+            .print-header {
+                border-bottom: 1px solid #dee2e6;
+                padding-bottom: 10px;
+            }
+            .print-footer {
+                border-top: 1px solid #dee2e6;
+                padding-top: 10px;
+                font-size: 0.85rem;
+                color: #6c757d;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="mb-4 no-print">
+            <div class="row">
+                <div class="col-md-6">
+                    <h1>Market Intelligence Platform</h1>
+                </div>
+                <div class="col-md-6 text-end">
+                    <a href="/" class="btn btn-outline-primary me-2">Dashboard</a>
+                    <a href="/clients" class="btn btn-outline-primary me-2">Clients</a>
+                    <a href="/linkedin" class="btn btn-outline-primary">LinkedIn</a>
+                </div>
+            </div>
+        </header>
+
+        <div class="row">
+            <div class="col-md-12">
+                <!-- Report Actions -->
+                <div class="report-actions no-print">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <a href="/clients/{{ client.id }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left"></i> Back to Client
+                            </a>
+                            <a href="/clients/{{ client.id }}/reports" class="btn btn-outline-primary ms-2">
+                                All Reports
+                            </a>
+                        </div>
+                        <div>
+                            <a href="/clients/{{ client.id }}/reports/{{ report.id }}/linkedin" class="btn btn-outline-info me-2">
+                                Create LinkedIn Post
+                            </a>
+                            <button id="print-btn" class="btn btn-outline-secondary me-2">
+                                Print Report
+                            </button>
+                            <a href="/clients/{{ client.id }}/reports/{{ report.id }}/export" class="btn btn-outline-success">
+                                Export as PDF
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Print Header -->
+                <div class="print-header">
+                    <h1>{{ client.name }} - Market Intelligence Report</h1>
+                    <p>{{ report.date }}</p>
+                </div>
+                
+                <!-- Report Content -->
+                <div class="dashboard-card">
+                    <div class="report-content" id="report-content">
+                        {{ report.content | safe }}
+                    </div>
+                    
+                    <div class="mt-4 status-info">
+                        Generated: {{ report.date }} | {{ report.articles_count }} articles analyzed
+                    </div>
+                    
+                    {% if report.articles %}
+                    <div class="mt-4 article-ref">
+                        <strong>Sources Referenced:</strong>
+                        <ul>
+                            {% for article in report.articles %}
+                            <li>
+                                <a href="{{ article.url }}" target="_blank">{{ article.title }}</a> 
+                                - {{ article.source }} ({{ article.date }})
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Print Footer -->
+                <div class="print-footer">
+                    <p>Generated by Market Intelligence Platform - {{ report.date }}</p>
+                    <p>Confidential - For internal use only</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="loading" class="loading text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p id="loading-text">Processing...</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const reportContent = document.getElementById('report-content');
+            const printBtn = document.getElementById('print-btn');
+            
+            // Format report content with Markdown
+            if (reportContent.textContent.trim()) {
+                reportContent.innerHTML = marked.parse(reportContent.textContent);
+            }
+            
+            // Print button
+            if (printBtn) {
+                printBtn.addEventListener('click', function() {
+                    window.print();
+                });
+            }
+        });
+    </script>
+</body>
+</html> 

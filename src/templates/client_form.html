@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if client %}Edit {{ client.name }}{% else %}Add New Client{% endif %} - Market Intelligence Platform</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            padding-top: 20px;
+            padding-bottom: 20px;
+            background-color: #f8f9fa;
+        }
+        .dashboard-card {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            margin-bottom: 20px;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .interest-tag {
+            display: inline-block;
+            background-color: #e9ecef;
+            border-radius: 16px;
+            padding: 5px 12px;
+            margin-right: 8px;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+        .interest-tag .remove-tag {
+            margin-left: 5px;
+            cursor: pointer;
+            color: #6c757d;
+        }
+        .loading {
+            display: none;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="mb-4">
+            <div class="row">
+                <div class="col-md-6">
+                    <h1>Market Intelligence Platform</h1>
+                </div>
+                <div class="col-md-6 text-end">
+                    <a href="/" class="btn btn-outline-primary me-2">Dashboard</a>
+                    <a href="/clients" class="btn btn-outline-primary me-2">Clients</a>
+                    <a href="/linkedin" class="btn btn-outline-primary">LinkedIn</a>
+                </div>
+            </div>
+        </header>
+
+        <div class="row">
+            <div class="col-md-10 mx-auto">
+                <div class="dashboard-card">
+                    <h2>{% if client %}Edit Client{% else %}Add New Client{% endif %}</h2>
+                    <form id="client-form" method="POST">
+                        <div class="form-group">
+                            <label for="client-name" class="form-label">Client Name</label>
+                            <input type="text" class="form-control" id="client-name" name="name" 
+                                   value="{{ client.name if client else '' }}" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="client-industry" class="form-label">Industry</label>
+                            <input type="text" class="form-control" id="client-industry" name="industry" 
+                                   value="{{ client.industry if client else '' }}" required>
+                            <div class="form-text">E.g. Technology, Healthcare, Finance, etc.</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="client-website" class="form-label">Website</label>
+                            <input type="url" class="form-control" id="client-website" name="website" 
+                                   value="{{ client.website if client else '' }}" placeholder="https://example.com">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="client-interests" class="form-label">Interests</label>
+                            <div class="input-group mb-2">
+                                <input type="text" class="form-control" id="interest-input" 
+                                       placeholder="Add interest and press Enter">
+                                <button class="btn btn-outline-secondary" type="button" id="add-interest-btn">Add</button>
+                            </div>
+                            <div class="form-text mb-2">Press Enter after each interest or click Add button. These topics will be used for crawling and report generation.</div>
+                            
+                            <div id="interests-container" class="mb-3">
+                                <!-- Interest tags will be dynamically added here -->
+                                {% if client and client.interests_list %}
+                                    {% for interest in client.interests_list %}
+                                    <span class="interest-tag" data-value="{{ interest }}">
+                                        {{ interest }}
+                                        <span class="remove-tag">&times;</span>
+                                    </span>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Hidden input to store interests list -->
+                            <input type="hidden" id="interests-hidden" name="interests" 
+                                   value="{{ client.interests if client else '' }}">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="client-sources" class="form-label">News Sources</label>
+                            <textarea class="form-control" id="client-sources" name="sources" rows="3"
+                                   placeholder="Enter news sources URLs, one per line">{{ client.sources if client else '' }}</textarea>
+                            <div class="form-text">Enter specific news sources URLs to crawl, one per line. Leave empty to use default sources based on industry.</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="client-description" class="form-label">Description</label>
+                            <textarea class="form-control" id="client-description" name="description" rows="3">{{ client.description if client else '' }}</textarea>
+                            <div class="form-text">Brief description of the client to help with report generation.</div>
+                        </div>
+                        
+                        <div class="mt-4 d-flex justify-content-between">
+                            <a href="/clients" class="btn btn-outline-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">{% if client %}Update Client{% else %}Add Client{% endif %}</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div id="loading" class="loading text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p id="loading-text">Processing...</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const interestInput = document.getElementById('interest-input');
+            const addInterestBtn = document.getElementById('add-interest-btn');
+            const interestsContainer = document.getElementById('interests-container');
+            const interestsHidden = document.getElementById('interests-hidden');
+            const clientForm = document.getElementById('client-form');
+            const loading = document.getElementById('loading');
+            
+            // Function to add a new interest tag
+            function addInterestTag(interest) {
+                if (!interest || interest.trim() === '') return;
+                
+                // Check if interest already exists
+                const existingTags = interestsContainer.querySelectorAll('.interest-tag');
+                for (let tag of existingTags) {
+                    if (tag.getAttribute('data-value').toLowerCase() === interest.toLowerCase()) {
+                        return; // Skip duplicates
+                    }
+                }
+                
+                // Create new tag
+                const tag = document.createElement('span');
+                tag.className = 'interest-tag';
+                tag.setAttribute('data-value', interest);
+                tag.innerHTML = `${interest} <span class="remove-tag">&times;</span>`;
+                
+                // Add remove event listener
+                tag.querySelector('.remove-tag').addEventListener('click', function() {
+                    tag.remove();
+                    updateHiddenInput();
+                });
+                
+                interestsContainer.appendChild(tag);
+                updateHiddenInput();
+                interestInput.value = '';
+            }
+            
+            // Update hidden input with all interests
+            function updateHiddenInput() {
+                const tags = interestsContainer.querySelectorAll('.interest-tag');
+                const interests = Array.from(tags).map(tag => tag.getAttribute('data-value'));
+                interestsHidden.value = interests.join(', ');
+            }
+            
+            // Add interest when Enter key is pressed
+            interestInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addInterestTag(this.value.trim());
+                }
+            });
+            
+            // Add interest when button is clicked
+            addInterestBtn.addEventListener('click', function() {
+                addInterestTag(interestInput.value.trim());
+            });
+            
+            // Attach remove listeners to existing tags
+            document.querySelectorAll('.remove-tag').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    this.parentElement.remove();
+                    updateHiddenInput();
+                });
+            });
+            
+            // Update hidden input on page load
+            updateHiddenInput();
+            
+            // Form submission
+            clientForm.addEventListener('submit', function(e) {
+                if (interestsHidden.value.trim() === '') {
+                    e.preventDefault();
+                    alert('Please add at least one interest');
+                    return;
+                }
+                
+                loading.style.display = 'block';
+            });
+        });
+    </script>
+</body>
+</html> 

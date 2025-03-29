@@ -34,7 +34,8 @@ class ClientModel:
         logger.info("ClientModel initialized")
     
     def create_client(self, name: str, industry: Optional[str] = None, interests: Optional[List[str]] = None, 
-                     contact_email: Optional[str] = None,
+                     contact_email: Optional[str] = None, website: Optional[str] = None,
+                     sources: Optional[List[str]] = None, description: Optional[str] = None,
                      metadata: Optional[Dict[str, Any]] = None,
                      additional_data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
@@ -45,6 +46,9 @@ class ClientModel:
             industry: Client industry
             interests: List of client interests/topics
             contact_email: Optional contact email
+            website: Optional client website
+            sources: Optional list of news sources to crawl
+            description: Optional client description
             metadata: Optional metadata dictionary
             additional_data: Optional additional client data
             
@@ -58,9 +62,13 @@ class ClientModel:
         # Set default values if not provided
         interests = interests or []
         industry = industry or ""
+        sources = sources or []
         
         # Normalize interests (lowercase and remove duplicates)
         normalized_interests = list(set([i.lower().strip() for i in interests if i.strip()]))
+        
+        # Clean up sources list
+        normalized_sources = list(set([s.strip() for s in sources if s.strip()]))
         
         # Create client object
         client = {
@@ -68,6 +76,7 @@ class ClientModel:
             "name": name,
             "industry": industry,
             "interests": normalized_interests,
+            "sources": normalized_sources,
             "created_at": timestamp,
             "updated_at": timestamp,
             "active": True
@@ -76,6 +85,12 @@ class ClientModel:
         # Add optional fields
         if contact_email:
             client["contact_email"] = contact_email
+            
+        if website:
+            client["website"] = website
+            
+        if description:
+            client["description"] = description
             
         # Add metadata if provided
         if metadata:
@@ -107,6 +122,14 @@ class ClientModel:
                 interest_clients.append(client_id)
                 self.redis_cache.set(interest_key, interest_clients)
         
+        # Index by industry
+        if industry:
+            industry_key = f"industry:{industry.lower()}"
+            industry_clients = self.redis_cache.get(industry_key) or []
+            if client_id not in industry_clients:
+                industry_clients.append(client_id)
+                self.redis_cache.set(industry_key, industry_clients)
+        
         logger.info(f"Created new client: {name} (ID: {client_id})")
         return client
     
@@ -134,6 +157,9 @@ class ClientModel:
                      industry: Optional[str] = None,
                      interests: Optional[List[str]] = None,
                      contact_email: Optional[str] = None,
+                     website: Optional[str] = None,
+                     sources: Optional[List[str]] = None,
+                     description: Optional[str] = None,
                      active: Optional[bool] = None,
                      additional_data: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
         """
@@ -145,6 +171,9 @@ class ClientModel:
             industry: Optional new industry
             interests: Optional new interests
             contact_email: Optional new contact email
+            website: Optional new website
+            sources: Optional new news sources
+            description: Optional new description
             active: Optional new active status
             additional_data: Optional additional client data
             
@@ -156,15 +185,34 @@ class ClientModel:
             logger.error(f"Cannot update client - not found: {client_id}")
             return None
         
-        # Track old interests for indexing updates
+        # Track old interests and industry for indexing updates
         old_interests = client.get("interests", [])
+        old_industry = client.get("industry", "").lower()
         
         # Update fields if provided
         if name:
             client["name"] = name
         
-        if industry:
+        if industry is not None:
             client["industry"] = industry
+            
+            # Update industry index
+            if old_industry != industry.lower():
+                # Remove from old industry index
+                if old_industry:
+                    industry_key = f"industry:{old_industry}"
+                    industry_clients = self.redis_cache.get(industry_key) or []
+                    if client_id in industry_clients:
+                        industry_clients.remove(client_id)
+                        self.redis_cache.set(industry_key, industry_clients)
+                
+                # Add to new industry index
+                if industry:
+                    industry_key = f"industry:{industry.lower()}"
+                    industry_clients = self.redis_cache.get(industry_key) or []
+                    if client_id not in industry_clients:
+                        industry_clients.append(client_id)
+                        self.redis_cache.set(industry_key, industry_clients)
         
         if interests is not None:
             # Normalize interests (lowercase and remove duplicates)
@@ -192,6 +240,17 @@ class ClientModel:
         
         if contact_email is not None:
             client["contact_email"] = contact_email
+            
+        if website is not None:
+            client["website"] = website
+            
+        if sources is not None:
+            # Normalize sources
+            normalized_sources = list(set([s.strip() for s in sources if s.strip()]))
+            client["sources"] = normalized_sources
+            
+        if description is not None:
+            client["description"] = description
         
         if active is not None:
             client["active"] = active
@@ -213,7 +272,7 @@ class ClientModel:
     
     def delete_client(self, client_id: str) -> bool:
         """
-        Delete a client profile.
+        Delete a client profile and all associated data.
         
         Args:
             client_id: The client ID
@@ -243,6 +302,46 @@ class ClientModel:
                     interest_clients.remove(client_id)
                     self.redis_cache.set(interest_key, interest_clients)
             
+            # Remove from industry index
+            industry = client.get("industry", "").lower()
+            if industry:
+                industry_key = f"industry:{industry}"
+                industry_clients = self.redis_cache.get(industry_key) or []
+                if client_id in industry_clients:
+                    industry_clients.remove(client_id)
+                    self.redis_cache.set(industry_key, industry_clients)
+            
+            # Delete client data
+            # 1. Articles
+            article_key = f"client:{client_id}:articles"
+            self.redis_cache.delete(article_key)
+            
+            # 2. Reports
+            report_history_key = f"client:{client_id}:report_history"
+            report_history = self.redis_cache.get(report_history_key) or []
+            for report_id in report_history:
+                report_key = f"report:{report_id}"
+                self.redis_cache.delete(report_key)
+            self.redis_cache.delete(report_history_key)
+            
+            # 3. Latest report reference
+            latest_report_key = f"client:{client_id}:latest_report"
+            self.redis_cache.delete(latest_report_key)
+            
+            # 4. External data
+            external_data_list_key = f"client:{client_id}:external_data_list"
+            external_data_list = self.redis_cache.get(external_data_list_key) or []
+            for data_id in external_data_list:
+                data_key = f"client:{client_id}:external_data:{data_id}"
+                self.redis_cache.delete(data_key)
+            self.redis_cache.delete(external_data_list_key)
+            
+            # 5. Any other client-specific keys
+            # Find all keys with pattern client:{client_id}:*
+            all_client_keys = self.redis_cache.keys(f"client:{client_id}:*")
+            for key in all_client_keys:
+                self.redis_cache.delete(key)
+            
             # Delete the client key
             client_key = f"client:{client_id}"
             self.redis_cache.delete(client_key)
@@ -254,162 +353,196 @@ class ClientModel:
             logger.error(f"Error deleting client {client_id}: {str(e)}")
             return False
     
-    def get_all_client_ids(self) -> List[str]:
+    def get_all_clients(self) -> List[Dict[str, Any]]:
         """
-        Get list of all client IDs.
+        Retrieve all clients.
         
         Returns:
-            List of client IDs
+            List of all client profiles
         """
         client_index_key = "clients:all"
         client_ids = self.redis_cache.get(client_index_key) or []
         
-        # If no client IDs are found using the index, try to find them directly
-        if not client_ids:
-            # Search for all keys that match the pattern "client:*"
-            all_keys = self.redis_cache.scan(0, "client:*", 100)[1] if hasattr(self.redis_cache, 'scan') else []
-            
-            # Extract client IDs from keys
-            if all_keys:
-                client_ids = [key.split(':')[1] for key in all_keys]
-                
-                # Update the index
-                if client_ids:
-                    self.redis_cache.set(client_index_key, client_ids)
-        
-        return client_ids
-    
-    def get_all_clients(self, active_only: bool = True) -> List[Dict[str, Any]]:
-        """
-        Get all client profiles.
-        
-        Args:
-            active_only: Whether to return only active clients
-            
-        Returns:
-            List of client profile data
-        """
-        client_ids = self.get_all_client_ids()
-        
         clients = []
         for client_id in client_ids:
             client = self.get_client(client_id)
-            if client:
-                if not active_only or client.get("active", True):
-                    clients.append(client)
+            if client and client.get("active", True):  # Only return active clients
+                clients.append(client)
+        
+        # Sort by name
+        clients.sort(key=lambda x: x.get("name", "").lower())
         
         return clients
     
-    def get_clients_by_interest(self, interest: str, active_only: bool = True) -> List[Dict[str, Any]]:
+    def get_clients_by_interest(self, interest: str) -> List[Dict[str, Any]]:
         """
-        Get clients that have a specific interest.
+        Retrieve clients by interest.
         
         Args:
-            interest: The interest to filter by
-            active_only: Whether to return only active clients
+            interest: The interest to search for
             
         Returns:
-            List of client profile data
+            List of client profiles with the specified interest
         """
-        interest_key = f"interest:{interest.lower().strip()}"
+        interest_key = f"interest:{interest.lower()}"
         client_ids = self.redis_cache.get(interest_key) or []
         
         clients = []
         for client_id in client_ids:
             client = self.get_client(client_id)
-            if client:
-                if not active_only or client.get("active", True):
-                    clients.append(client)
+            if client and client.get("active", True):  # Only return active clients
+                clients.append(client)
+        
+        # Sort by name
+        clients.sort(key=lambda x: x.get("name", "").lower())
         
         return clients
     
-    def search_clients(self, query: str, active_only: bool = True) -> List[Dict[str, Any]]:
+    def get_clients_by_industry(self, industry: str) -> List[Dict[str, Any]]:
         """
-        Search for clients matching a query string.
+        Retrieve clients by industry.
         
         Args:
-            query: The search query
-            active_only: Whether to return only active clients
+            industry: The industry to search for
             
         Returns:
-            List of matching client profile data
+            List of client profiles in the specified industry
         """
-        query = query.lower()
-        all_clients = self.get_all_clients(active_only=active_only)
+        industry_key = f"industry:{industry.lower()}"
+        client_ids = self.redis_cache.get(industry_key) or []
         
-        results = []
-        for client in all_clients:
-            if (query in client.get("name", "").lower() or
-                query in client.get("industry", "").lower() or
-                any(query in interest.lower() for interest in client.get("interests", []))):
-                results.append(client)
+        clients = []
+        for client_id in client_ids:
+            client = self.get_client(client_id)
+            if client and client.get("active", True):  # Only return active clients
+                clients.append(client)
         
-        return results
+        # Sort by name
+        clients.sort(key=lambda x: x.get("name", "").lower())
+        
+        return clients
     
-    def create_demo_clients(self) -> List[Dict[str, Any]]:
+    def add_client_tag(self, client_id: str, tag: str) -> bool:
         """
-        Create a set of demo clients for testing.
+        Add a tag to a client.
         
+        Args:
+            client_id: The client ID
+            tag: The tag to add
+            
         Returns:
-            List of created demo client profiles
+            True if successful, False otherwise
         """
-        # First, check if we already have clients
-        existing_clients = self.get_all_clients()
-        if existing_clients:
-            logger.info(f"Skipping demo client creation - {len(existing_clients)} clients already exist")
-            return existing_clients
+        client = self.get_client(client_id)
+        if not client:
+            logger.error(f"Cannot add tag - client not found: {client_id}")
+            return False
         
-        demo_clients = [
-            {
-                "name": "TechInnovate Corp",
-                "industry": "Technology",
-                "interests": ["AI", "machine learning", "cloud computing", "cybersecurity", "tech trends"],
-                "contact_email": "info@techinnovate.example.com"
-            },
-            {
-                "name": "Global Finance Partners",
-                "industry": "Finance",
-                "interests": ["banking", "fintech", "market analysis", "investment trends", "economic outlook"],
-                "contact_email": "info@gfpartners.example.com"
-            },
-            {
-                "name": "EcoSustain Solutions",
-                "industry": "Renewable Energy",
-                "interests": ["sustainability", "renewable energy", "climate tech", "green initiatives", "ESG"],
-                "contact_email": "contact@ecosustain.example.com"
-            },
-            {
-                "name": "HealthPlus Innovations",
-                "industry": "Healthcare",
-                "interests": ["health tech", "biotech", "pharmaceutical", "medical devices", "healthcare policy"],
-                "contact_email": "info@healthplus.example.com"
-            },
-            {
-                "name": "RetailConnect Group",
-                "industry": "Retail",
-                "interests": ["e-commerce", "consumer trends", "retail tech", "supply chain", "market analysis"],
-                "contact_email": "hello@retailconnect.example.com"
-            }
-        ]
+        # Normalize tag
+        tag = tag.lower().strip()
+        if not tag:
+            return False
         
-        created_clients = []
-        for client_data in demo_clients:
-            client = self.create_client(
-                name=client_data["name"],
-                industry=client_data["industry"],
-                interests=client_data["interests"],
-                contact_email=client_data["contact_email"]
-            )
-            created_clients.append(client)
+        # Add tag to client
+        tags = client.get("tags", [])
+        if tag not in tags:
+            tags.append(tag)
+            client["tags"] = tags
+            
+            # Update client
+            client_key = f"client:{client_id}"
+            self.redis_cache.set(client_key, client)
+            
+            # Update tag index
+            tag_key = f"tag:{tag}"
+            tag_clients = self.redis_cache.get(tag_key) or []
+            if client_id not in tag_clients:
+                tag_clients.append(client_id)
+                self.redis_cache.set(tag_key, tag_clients)
+            
+            logger.info(f"Added tag '{tag}' to client {client.get('name', client_id)} (ID: {client_id})")
+            return True
         
-        logger.info(f"Created {len(created_clients)} demo clients")
-        return created_clients
+        return False  # Tag already exists
+    
+    def remove_client_tag(self, client_id: str, tag: str) -> bool:
+        """
+        Remove a tag from a client.
+        
+        Args:
+            client_id: The client ID
+            tag: The tag to remove
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        client = self.get_client(client_id)
+        if not client:
+            logger.error(f"Cannot remove tag - client not found: {client_id}")
+            return False
+        
+        # Normalize tag
+        tag = tag.lower().strip()
+        if not tag:
+            return False
+        
+        # Remove tag from client
+        tags = client.get("tags", [])
+        if tag in tags:
+            tags.remove(tag)
+            client["tags"] = tags
+            
+            # Update client
+            client_key = f"client:{client_id}"
+            self.redis_cache.set(client_key, client)
+            
+            # Update tag index
+            tag_key = f"tag:{tag}"
+            tag_clients = self.redis_cache.get(tag_key) or []
+            if client_id in tag_clients:
+                tag_clients.remove(client_id)
+                self.redis_cache.set(tag_key, tag_clients)
+            
+            logger.info(f"Removed tag '{tag}' from client {client.get('name', client_id)} (ID: {client_id})")
+            return True
+        
+        return False  # Tag doesn't exist
+    
+    def get_clients_by_tag(self, tag: str) -> List[Dict[str, Any]]:
+        """
+        Retrieve clients by tag.
+        
+        Args:
+            tag: The tag to search for
+            
+        Returns:
+            List of client profiles with the specified tag
+        """
+        tag_key = f"tag:{tag.lower()}"
+        client_ids = self.redis_cache.get(tag_key) or []
+        
+        clients = []
+        for client_id in client_ids:
+            client = self.get_client(client_id)
+            if client and client.get("active", True):  # Only return active clients
+                clients.append(client)
+        
+        # Sort by name
+        clients.sort(key=lambda x: x.get("name", "").lower())
+        
+        return clients
+
+# Create a singleton instance
+_client_model = None
 
 def get_client_model() -> ClientModel:
     """
-    Get a ClientModel instance.
+    Get the singleton client model instance.
     
     Returns:
-        ClientModel: A client model instance
+        The ClientModel instance
     """
-    return ClientModel() 
+    global _client_model
+    if _client_model is None:
+        _client_model = ClientModel()
+    return _client_model 

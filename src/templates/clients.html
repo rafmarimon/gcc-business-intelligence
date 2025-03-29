@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clients - Market Intelligence Platform</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            padding-top: 20px;
+            padding-bottom: 20px;
+            background-color: #f8f9fa;
+        }
+        .dashboard-card {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            margin-bottom: 20px;
+            padding: 20px;
+        }
+        .client-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .client-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .client-name {
+            font-weight: 600;
+            font-size: 1.2rem;
+            margin-bottom: 5px;
+        }
+        .client-industry {
+            font-size: 0.9rem;
+            color: #6c757d;
+            margin-bottom: 10px;
+        }
+        .client-interests {
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+        }
+        .client-actions {
+            margin-top: 10px;
+        }
+        .loading {
+            display: none;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="mb-4">
+            <div class="row">
+                <div class="col-md-6">
+                    <h1>Market Intelligence Platform</h1>
+                </div>
+                <div class="col-md-6 text-end">
+                    <a href="/" class="btn btn-outline-primary me-2">Dashboard</a>
+                    <a href="/clients" class="btn btn-outline-primary me-2 active">Clients</a>
+                    <a href="/linkedin" class="btn btn-outline-primary">LinkedIn</a>
+                </div>
+            </div>
+        </header>
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="dashboard-card">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h2>Clients</h2>
+                        <a href="/clients/add" class="btn btn-primary">Add New Client</a>
+                    </div>
+                    
+                    {% if clients %}
+                    <div class="row">
+                        {% for client in clients %}
+                        <div class="col-md-6 col-lg-4">
+                            <div class="client-card">
+                                <h4 class="client-name">{{ client.name }}</h4>
+                                <div class="client-industry">Industry: {{ client.industry }}</div>
+                                <div class="client-interests">
+                                    <strong>Interests:</strong> {{ client.interests }}
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        {% if client.reports_count %}
+                                        <span class="badge bg-success">{{ client.reports_count }} Reports</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">No Reports</span>
+                                        {% endif %}
+                                        
+                                        {% if client.articles_count %}
+                                        <span class="badge bg-info text-dark">{{ client.articles_count }} Articles</span>
+                                        {% else %}
+                                        <span class="badge bg-light text-dark">No Articles</span>
+                                        {% endif %}
+                                    </div>
+                                    {% if client.latest_report_date %}
+                                    <div class="text-muted small">Last updated: {{ client.latest_report_date }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="client-actions mt-3">
+                                    <a href="/clients/{{ client.id }}" class="btn btn-sm btn-outline-primary">View Details</a>
+                                    <a href="/clients/{{ client.id }}/edit" class="btn btn-sm btn-outline-secondary">Edit</a>
+                                    <button class="btn btn-sm btn-outline-danger delete-client-btn" 
+                                            data-client-id="{{ client.id }}" 
+                                            data-client-name="{{ client.name }}">Delete</button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info text-center">
+                        <h4>No clients found</h4>
+                        <p>Get started by adding your first client using the button above.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Delete Confirmation Modal -->
+        <div class="modal fade" id="deleteClientModal" tabindex="-1" aria-labelledby="deleteClientModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="deleteClientModalLabel">Confirm Delete</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Are you sure you want to delete <span id="client-name-to-delete"></span>?</p>
+                        <p class="text-danger">This will remove all associated reports and articles. This action cannot be undone.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <form id="delete-client-form" method="POST">
+                            <button type="submit" class="btn btn-danger">Delete Client</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="loading" class="loading text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p id="loading-text">Processing...</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const deleteButtons = document.querySelectorAll('.delete-client-btn');
+            const deleteClientModal = new bootstrap.Modal(document.getElementById('deleteClientModal'));
+            const clientNameToDelete = document.getElementById('client-name-to-delete');
+            const deleteClientForm = document.getElementById('delete-client-form');
+            
+            deleteButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const clientId = this.getAttribute('data-client-id');
+                    const clientName = this.getAttribute('data-client-name');
+                    
+                    clientNameToDelete.textContent = clientName;
+                    deleteClientForm.action = `/clients/${clientId}/delete`;
+                    
+                    deleteClientModal.show();
+                });
+            });
+        });
+    </script>
+</body>
+</html> 

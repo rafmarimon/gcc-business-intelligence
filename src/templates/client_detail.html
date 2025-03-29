@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ client.name }} - Market Intelligence Platform</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            padding-top: 20px;
+            padding-bottom: 20px;
+            background-color: #f8f9fa;
+        }
+        .dashboard-card {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            margin-bottom: 20px;
+            padding: 20px;
+        }
+        .report-content {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .action-button {
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        .status-info {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+        .loading {
+            display: none;
+            margin-top: 10px;
+        }
+        .article-card {
+            background-color: #fff;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,.1);
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .article-date {
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+        .article-source {
+            font-size: 0.85rem;
+            background-color: #e9ecef;
+            padding: 2px 8px;
+            border-radius: 12px;
+            margin-left: 5px;
+        }
+        .article-title {
+            font-weight: 600;
+            margin-top: 5px;
+            margin-bottom: 10px;
+        }
+        .hidden-data {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="mb-4">
+            <div class="row">
+                <div class="col-md-6">
+                    <h1>Market Intelligence Platform</h1>
+                </div>
+                <div class="col-md-6 text-end">
+                    <a href="/" class="btn btn-outline-primary me-2">Dashboard</a>
+                    <a href="/clients" class="btn btn-outline-primary me-2">Clients</a>
+                    <a href="/linkedin" class="btn btn-outline-primary">LinkedIn</a>
+                </div>
+            </div>
+        </header>
+
+        <div class="row">
+            <!-- Client Info -->
+            <div class="col-md-12">
+                <div class="dashboard-card">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h2 class="client-name">{{ client.name }}</h2>
+                            <p class="client-industry">{{ client.industry }}</p>
+                            <p class="client-interests">{{ client.interests }}</p>
+                            <div class="hidden-data">
+                                <span class="client-id">{{ client.id }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <a href="/clients/{{ client.id }}/edit" class="btn btn-outline-secondary me-2">Edit Client</a>
+                            <button id="crawl-btn" class="btn btn-outline-primary me-2">Crawl Sources</button>
+                            <button id="generate-report-btn" class="btn btn-outline-success">Generate Report</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Latest Report -->
+        {% if latest_report %}
+        <div class="row">
+            <div class="col-md-12">
+                <div class="dashboard-card">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h3>Latest Intelligence Report</h3>
+                        <div>
+                            <a href="/clients/{{ client.id }}/reports/{{ latest_report.id }}" class="btn btn-outline-primary me-2">View Full Report</a>
+                            <a href="/clients/{{ client.id }}/reports" class="btn btn-outline-secondary me-2">All Reports</a>
+                            <a href="/clients/{{ client.id }}/reports/{{ latest_report.id }}/linkedin" class="btn btn-outline-info">Create LinkedIn Post</a>
+                        </div>
+                    </div>
+                    <div class="report-content">
+                        <div class="hidden-data">
+                            <span class="report-id">{{ latest_report.id }}</span>
+                            <span class="report-date">{{ latest_report.date }}</span>
+                            <span class="report-articles-count">{{ latest_report.articles_count }}</span>
+                        </div>
+                        <div class="report-content">{{ latest_report.content | safe }}</div>
+                    </div>
+                    <div class="mt-3 status-info">
+                        Generated: {{ latest_report.date }} | {{ latest_report.articles_count }} articles analyzed
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="row">
+            <div class="col-md-12">
+                <div class="dashboard-card text-center">
+                    <h4>No Reports Available</h4>
+                    <p>Generate your first intelligence report to get insights on {{ client.name }}'s market interests.</p>
+                    <button id="generate-first-report-btn" class="btn btn-primary">Generate First Report</button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Recent Articles -->
+        <div class="row">
+            <div class="col-md-12">
+                <div class="dashboard-card">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h3>Recent Articles</h3>
+                        <span class="badge bg-primary">{{ recent_articles|length }} articles found</span>
+                    </div>
+                    
+                    {% if recent_articles %}
+                        <div class="row">
+                            {% for article in recent_articles %}
+                            <div class="col-md-6 mb-3">
+                                <div class="article-card">
+                                    <div class="d-flex justify-content-between">
+                                        <span class="article-date">{{ article.date }}</span>
+                                        <span class="article-source">{{ article.source }}</span>
+                                    </div>
+                                    <h5 class="article-title">{{ article.title }}</h5>
+                                    <p>{{ article.summary }}</p>
+                                    <div class="d-flex justify-content-between">
+                                        <a href="{{ article.url }}" target="_blank" class="btn btn-sm btn-outline-primary">Read Article</a>
+                                        <a href="/clients/{{ client.id }}/articles/{{ article.id }}/linkedin" class="btn btn-sm btn-outline-info">Create LinkedIn Post</a>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            No articles found. Click "Crawl Sources" to fetch the latest articles for {{ client.name }}.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Add links to external data section -->
+        <div class="col-md-6 mb-4">
+            <div class="dashboard-card">
+                <h4><i class="bi bi-file-earmark"></i> External Data</h4>
+                <p>Manage external data files for this client.</p>
+                <div class="d-grid gap-2">
+                    <a href="/clients/{{ client.id }}/upload" class="btn btn-outline-primary">
+                        <i class="bi bi-cloud-upload"></i> Upload New File
+                    </a>
+                    <a href="/clients/{{ client.id }}/external_data" class="btn btn-outline-secondary">
+                        <i class="bi bi-files"></i> View All Files
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add a chatbot section -->
+        <div class="col-md-6 mb-4">
+            <div class="dashboard-card">
+                <h4><i class="bi bi-chat-dots"></i> AI Assistant</h4>
+                <p>Chat with our AI assistant about {{ client.name }}.</p>
+                <div class="d-grid">
+                    <a href="/clients/{{ client.id }}/chat" class="btn btn-primary">
+                        <i class="bi bi-robot"></i> Open AI Assistant
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div id="loading" class="loading text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p id="loading-text">Processing...</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const crawlBtn = document.getElementById('crawl-btn');
+            const generateReportBtn = document.getElementById('generate-report-btn');
+            const generateFirstReportBtn = document.getElementById('generate-first-report-btn');
+            const loading = document.getElementById('loading');
+            const loadingText = document.getElementById('loading-text');
+            const clientId = document.querySelector('.client-id').textContent;
+            
+            // Format report content with Markdown
+            const reportContentDiv = document.querySelector('.report-content');
+            if (reportContentDiv) {
+                const content = reportContentDiv.textContent;
+                if (content && content.trim()) {
+                    reportContentDiv.innerHTML = marked.parse(content);
+                }
+            }
+            
+            // Crawl button
+            if (crawlBtn) {
+                crawlBtn.addEventListener('click', function() {
+                    loading.style.display = 'block';
+                    loadingText.textContent = 'Crawling sources...';
+                    
+                    fetch(`/clients/${clientId}/crawl`, {
+                        method: 'POST'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert(data.message || 'Crawl completed');
+                        location.reload();
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Error crawling sources');
+                        loading.style.display = 'none';
+                    });
+                });
+            }
+            
+            // Generate report button
+            if (generateReportBtn) {
+                generateReportBtn.addEventListener('click', function() {
+                    loading.style.display = 'block';
+                    loadingText.textContent = 'Generating report...';
+                    
+                    fetch(`/clients/${clientId}/generate-report`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: 'force_crawl=false'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert(data.message || 'Report generated');
+                        location.reload();
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Error generating report');
+                        loading.style.display = 'none';
+                    });
+                });
+            }
+            
+            // Generate first report button
+            if (generateFirstReportBtn) {
+                generateFirstReportBtn.addEventListener('click', function() {
+                    loading.style.display = 'block';
+                    loadingText.textContent = 'Generating report...';
+                    
+                    fetch(`/clients/${clientId}/generate-report`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: 'force_crawl=true'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert(data.message || 'Report generated');
+                        location.reload();
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Error generating report');
+                        loading.style.display = 'none';
+                    });
+                });
+            }
+        });
+    </script>
+</body>
+</html> 

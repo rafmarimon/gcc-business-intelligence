@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if post %}Edit LinkedIn Post{% else %}Create LinkedIn Post{% endif %} - Market Intelligence Platform</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            padding-top: 20px;
+            padding-bottom: 20px;
+            background-color: #f8f9fa;
+        }
+        .dashboard-card {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            margin-bottom: 20px;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .preview-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            background-color: white;
+        }
+        .preview-header {
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        .preview-content {
+            white-space: pre-line;
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        .preview-hashtags {
+            color: #0d6efd;
+            margin-bottom: 15px;
+        }
+        .preview-image {
+            width: 100%;
+            max-height: 300px;
+            object-fit: contain;
+            margin-bottom: 15px;
+            border-radius: 5px;
+        }
+        .loading {
+            display: none;
+            margin-top: 10px;
+        }
+        .hashtag-tag {
+            display: inline-block;
+            background-color: #e9ecef;
+            border-radius: 16px;
+            padding: 5px 12px;
+            margin-right: 8px;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+        .hashtag-tag .remove-tag {
+            margin-left: 5px;
+            cursor: pointer;
+            color: #6c757d;
+        }
+        .tone-option {
+            display: inline-block;
+            margin-right: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="mb-4">
+            <div class="row">
+                <div class="col-md-6">
+                    <h1>Market Intelligence Platform</h1>
+                </div>
+                <div class="col-md-6 text-end">
+                    <a href="/" class="btn btn-outline-primary me-2">Dashboard</a>
+                    <a href="/clients" class="btn btn-outline-primary me-2">Clients</a>
+                    <a href="/linkedin" class="btn btn-outline-primary">LinkedIn</a>
+                </div>
+            </div>
+        </header>
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="dashboard-card">
+                    <h2>{% if post %}Edit LinkedIn Post{% else %}Create LinkedIn Post{% endif %}</h2>
+                    {% if source_type %}
+                    <div class="alert alert-info">
+                        Creating post from {{ source_type }}: <strong>{{ source_title }}</strong> for client <strong>{{ client.name }}</strong>
+                    </div>
+                    {% endif %}
+                    
+                    <form id="linkedin-form" method="POST" enctype="multipart/form-data">
+                        <!-- Hidden fields for source and client info -->
+                        {% if source_id %}
+                        <input type="hidden" name="source_id" value="{{ source_id }}">
+                        {% endif %}
+                        {% if source_type %}
+                        <input type="hidden" name="source_type" value="{{ source_type }}">
+                        {% endif %}
+                        {% if client %}
+                        <input type="hidden" name="client_id" value="{{ client.id }}">
+                        {% endif %}
+                        
+                        <!-- Form fields -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                {% if not source_type %}
+                                <div class="form-group">
+                                    <label for="client-select" class="form-label">Client</label>
+                                    <select class="form-select" id="client-select" name="client_id" required {% if client %}disabled{% endif %}>
+                                        <option value="">Select a client</option>
+                                        {% for client_option in clients %}
+                                        <option value="{{ client_option.id }}" {% if client and client.id == client_option.id %}selected{% endif %}>
+                                            {{ client_option.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="source-type" class="form-label">Content Source</label>
+                                    <select class="form-select" id="source-type" name="source_type" required {% if source_type %}disabled{% endif %}>
+                                        <option value="">Select content source</option>
+                                        <option value="manual" {% if source_type == 'manual' %}selected{% endif %}>Manual Entry</option>
+                                        <option value="report" {% if source_type == 'report' %}selected{% endif %}>Client Report</option>
+                                        <option value="article" {% if source_type == 'article' %}selected{% endif %}>Article</option>
+                                    </select>
+                                </div>
+                                
+                                <div id="source-select-container" class="form-group" style="display: none;">
+                                    <label for="source-select" class="form-label">Select Source</label>
+                                    <select class="form-select" id="source-select" name="source_id">
+                                        <option value="">Loading sources...</option>
+                                    </select>
+                                </div>
+                                {% endif %}
+                                
+                                <div class="form-group">
+                                    <label for="tone-options" class="form-label">Post Tone</label>
+                                    <div id="tone-options">
+                                        <div class="tone-option">
+                                            <input type="radio" class="form-check-input" id="tone-professional" name="tone" value="professional" 
+                                                   {% if not post or post.tone == 'professional' %}checked{% endif %}>
+                                            <label class="form-check-label" for="tone-professional">Professional</label>
+                                        </div>
+                                        <div class="tone-option">
+                                            <input type="radio" class="form-check-input" id="tone-casual" name="tone" value="casual"
+                                                   {% if post and post.tone == 'casual' %}checked{% endif %}>
+                                            <label class="form-check-label" for="tone-casual">Casual</label>
+                                        </div>
+                                        <div class="tone-option">
+                                            <input type="radio" class="form-check-input" id="tone-engaging" name="tone" value="engaging"
+                                                   {% if post and post.tone == 'engaging' %}checked{% endif %}>
+                                            <label class="form-check-label" for="tone-engaging">Engaging</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="post-content" class="form-label">Post Content</label>
+                                    <textarea class="form-control" id="post-content" name="content" rows="6" required>{{ post.content if post else '' }}</textarea>
+                                    <div class="form-text">LinkedIn post content. Max 3000 characters recommended.</div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="hashtags-input" class="form-label">Hashtags</label>
+                                    <div class="input-group mb-2">
+                                        <span class="input-group-text">#</span>
+                                        <input type="text" class="form-control" id="hashtags-input" placeholder="Add hashtag and press Enter">
+                                        <button class="btn btn-outline-secondary" type="button" id="add-hashtag-btn">Add</button>
+                                    </div>
+                                    
+                                    <div id="hashtags-container" class="mb-3">
+                                        <!-- Hashtags will be added here -->
+                                        {% if post and post.hashtags_list %}
+                                            {% for hashtag in post.hashtags_list %}
+                                            <span class="hashtag-tag" data-value="{{ hashtag }}">
+                                                #{{ hashtag }}
+                                                <span class="remove-tag">&times;</span>
+                                            </span>
+                                            {% endfor %}
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <!-- Hidden input to store hashtags -->
+                                    <input type="hidden" id="hashtags-hidden" name="hashtags" value="{{ post.hashtags if post else '' }}">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="post-image" class="form-label">Image</label>
+                                    <input type="file" class="form-control" id="post-image" name="image" accept="image/*">
+                                    {% if post and post.image_url %}
+                                    <div class="form-check mt-2">
+                                        <input class="form-check-input" type="checkbox" id="keep-image" name="keep_image" value="1" checked>
+                                        <label class="form-check-label" for="keep-image">
+                                            Keep existing image
+                                        </label>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="form-group">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="generate-image" name="generate_image" value="1"
+                                              {% if post and post.generated_image %}checked{% endif %}>
+                                        <label class="form-check-label" for="generate-image">
+                                            Generate image using AI
+                                        </label>
+                                    </div>
+                                    <div class="form-text">If checked, an image will be generated based on your post content using DALL-E.</div>
+                                </div>
+                                
+                                <div class="mt-4 d-flex justify-content-between">
+                                    <a href="/linkedin" class="btn btn-outline-secondary">Cancel</a>
+                                    <button type="submit" class="btn btn-primary">
+                                        {% if source_type and not post %}Generate Post{% elif post %}Update Post{% else %}Create Post{% endif %}
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="preview-card">
+                                    <h4 class="preview-header">Post Preview</h4>
+                                    
+                                    <div id="preview-image-container" {% if not post or not post.image_url %}style="display: none;"{% endif %}>
+                                        {% if post and post.image_url %}
+                                        <img src="{{ post.image_url }}" class="preview-image" id="preview-image" alt="LinkedIn post image">
+                                        {% else %}
+                                        <img src="" class="preview-image" id="preview-image" alt="LinkedIn post image">
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div id="preview-content" class="preview-content">
+                                        {{ post.content if post else 'Your post content will appear here...' }}
+                                    </div>
+                                    
+                                    <div id="preview-hashtags" class="preview-hashtags">
+                                        {{ post.hashtags if post else '' }}
+                                    </div>
+                                    
+                                    <div class="text-muted small">
+                                        Character count: <span id="character-count">0</span>/3000
+                                    </div>
+                                </div>
+                                
+                                {% if source_type == 'manual' or not source_type %}
+                                <div class="mt-4">
+                                    <button type="button" id="generate-ai-btn" class="btn btn-outline-primary w-100">Generate Content with AI</button>
+                                    <div class="form-text text-center mt-2">Click to generate LinkedIn post content using AI based on client information.</div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div id="loading" class="loading text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p id="loading-text">Processing...</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const postContent = document.getElementById('post-content');
+            const previewContent = document.getElementById('preview-content');
+            const previewHashtags = document.getElementById('preview-hashtags');
+            const characterCount = document.getElementById('character-count');
+            const hashtagsInput = document.getElementById('hashtags-input');
+            const addHashtagBtn = document.getElementById('add-hashtag-btn');
+            const hashtagsContainer = document.getElementById('hashtags-container');
+            const hashtagsHidden = document.getElementById('hashtags-hidden');
+            const postImage = document.getElementById('post-image');
+            const previewImage = document.getElementById('preview-image');
+            const previewImageContainer = document.getElementById('preview-image-container');
+            const generateAiBtn = document.getElementById('generate-ai-btn');
+            const loading = document.getElementById('loading');
+            const loadingText = document.getElementById('loading-text');
+            
+            // Update preview and character count
+            postContent.addEventListener('input', function() {
+                previewContent.textContent = this.value;
+                characterCount.textContent = this.value.length;
+                
+                if (this.value.length > 3000) {
+                    characterCount.classList.add('text-danger');
+                } else {
+                    characterCount.classList.remove('text-danger');
+                }
+            });
+            
+            // Initialize character count
+            characterCount.textContent = postContent.value.length;
+            
+            // Function to add a new hashtag
+            function addHashtag(hashtag) {
+                if (!hashtag || hashtag.trim() === '') return;
+                
+                // Remove # prefix if present
+                hashtag = hashtag.trim().replace(/^#/, '');
+                
+                // Validate hashtag (no spaces or special characters)
+                if (!/^[a-zA-Z0-9_]+$/.test(hashtag)) {
+                    alert('Hashtags can only contain letters, numbers, and underscores');
+                    return;
+                }
+                
+                // Check if hashtag already exists
+                const existingTags = hashtagsContainer.querySelectorAll('.hashtag-tag');
+                for (let tag of existingTags) {
+                    if (tag.getAttribute('data-value').toLowerCase() === hashtag.toLowerCase()) {
+                        return; // Skip duplicates
+                    }
+                }
+                
+                // Create new tag
+                const tag = document.createElement('span');
+                tag.className = 'hashtag-tag';
+                tag.setAttribute('data-value', hashtag);
+                tag.innerHTML = `#${hashtag} <span class="remove-tag">&times;</span>`;
+                
+                // Add remove event listener
+                tag.querySelector('.remove-tag').addEventListener('click', function() {
+                    tag.remove();
+                    updateHashtagsPreview();
+                });
+                
+                hashtagsContainer.appendChild(tag);
+                updateHashtagsPreview();
+                hashtagsInput.value = '';
+            }
+            
+            // Update hashtags preview and hidden input
+            function updateHashtagsPreview() {
+                const tags = hashtagsContainer.querySelectorAll('.hashtag-tag');
+                const hashtagsArray = Array.from(tags).map(tag => tag.getAttribute('data-value'));
+                const hashtagsText = hashtagsArray.map(tag => `#${tag}`).join(' ');
+                
+                hashtagsHidden.value = hashtagsText;
+                previewHashtags.textContent = hashtagsText;
+            }
+            
+            // Add hashtag when Enter key is pressed
+            hashtagsInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addHashtag(this.value.trim());
+                }
+            });
+            
+            // Add hashtag when button is clicked
+            addHashtagBtn.addEventListener('click', function() {
+                addHashtag(hashtagsInput.value.trim());
+            });
+            
+            // Attach remove listeners to existing tags
+            document.querySelectorAll('.remove-tag').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    this.parentElement.remove();
+                    updateHashtagsPreview();
+                });
+            });
+            
+            // Update hashtags preview on page load
+            updateHashtagsPreview();
+            
+            // Handle image upload preview
+            postImage.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    const reader = new FileReader();
+                    
+                    reader.onload = function(e) {
+                        previewImage.src = e.target.result;
+                        previewImageContainer.style.display = 'block';
+                    };
+                    
+                    reader.readAsDataURL(this.files[0]);
+                    
+                    // Uncheck 'keep existing image' if it exists
+                    const keepImage = document.getElementById('keep-image');
+                    if (keepImage) keepImage.checked = false;
+                }
+            });
+            
+            // Source type change handler (if it exists)
+            const sourceType = document.getElementById('source-type');
+            const sourceSelectContainer = document.getElementById('source-select-container');
+            const sourceSelect = document.getElementById('source-select');
+            const clientSelect = document.getElementById('client-select');
+            
+            if (sourceType && clientSelect) {
+                sourceType.addEventListener('change', function() {
+                    if (this.value === 'manual') {
+                        sourceSelectContainer.style.display = 'none';
+                    } else if (this.value === 'report' || this.value === 'article') {
+                        sourceSelectContainer.style.display = 'block';
+                        
+                        // Check if client is selected
+                        const clientId = clientSelect.value;
+                        if (!clientId) {
+                            alert('Please select a client first');
+                            this.value = '';
+                            sourceSelectContainer.style.display = 'none';
+                            return;
+                        }
+                        
+                        // Fetch sources based on client and source type
+                        loading.style.display = 'block';
+                        loadingText.textContent = 'Loading sources...';
+                        
+                        fetch(`/api/client/${clientId}/sources?type=${this.value}`)
+                            .then(response => response.json())
+                            .then(data => {
+                                // Clear existing options
+                                sourceSelect.innerHTML = '';
+                                
+                                // Add default option
+                                const defaultOption = document.createElement('option');
+                                defaultOption.value = '';
+                                defaultOption.textContent = `Select a ${this.value}`;
+                                sourceSelect.appendChild(defaultOption);
+                                
+                                // Add sources
+                                if (data.sources && data.sources.length > 0) {
+                                    data.sources.forEach(source => {
+                                        const option = document.createElement('option');
+                                        option.value = source.id;
+                                        option.textContent = source.title;
+                                        sourceSelect.appendChild(option);
+                                    });
+                                } else {
+                                    const noSourcesOption = document.createElement('option');
+                                    noSourcesOption.value = '';
+                                    noSourcesOption.textContent = `No ${this.value}s found for this client`;
+                                    noSourcesOption.disabled = true;
+                                    sourceSelect.appendChild(noSourcesOption);
+                                }
+                                
+                                loading.style.display = 'none';
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                alert(`Error loading ${this.value}s`);
+                                loading.style.display = 'none';
+                            });
+                    }
+                });
+                
+                clientSelect.addEventListener('change', function() {
+                    // Reset source type and sources when client changes
+                    sourceType.value = '';
+                    sourceSelectContainer.style.display = 'none';
+                });
+            }
+            
+            // Generate content with AI button
+            if (generateAiBtn) {
+                generateAiBtn.addEventListener('click', function() {
+                    const clientId = clientSelect ? clientSelect.value : document.querySelector('input[name="client_id"]').value;
+                    
+                    if (!clientId) {
+                        alert('Please select a client first');
+                        return;
+                    }
+                    
+                    loading.style.display = 'block';
+                    loadingText.textContent = 'Generating content with AI...';
+                    
+                    // Get the selected tone
+                    const tone = document.querySelector('input[name="tone"]:checked').value;
+                    
+                    fetch('/api/generate-linkedin-content', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            client_id: clientId,
+                            tone: tone
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.content) {
+                            postContent.value = data.content;
+                            previewContent.textContent = data.content;
+                            characterCount.textContent = data.content.length;
+                        }
+                        
+                        if (data.hashtags) {
+                            // Clear existing hashtags
+                            hashtagsContainer.innerHTML = '';
+                            
+                            // Add new hashtags
+                            data.hashtags.split(' ').forEach(tag => {
+                                if (tag) {
+                                    addHashtag(tag.replace(/^#/, ''));
+                                }
+                            });
+                        }
+                        
+                        loading.style.display = 'none';
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Error generating content');
+                        loading.style.display = 'none';
+                    });
+                });
+            }
+        });
+    </script>
+</body>
+</html> 

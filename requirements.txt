@@ -20,7 +20,7 @@ flask==3.0.0
 flask-cors==4.0.0
 weasyprint==60.1
 tensorflow==2.15.0
-numpy==1.24.3
+numpy==1.26.4
 h5py==3.10.0
 pillow==10.1.0
 gunicorn==21.2.0

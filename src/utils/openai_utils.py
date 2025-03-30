@@ -4,6 +4,7 @@ import logging
 import os
 import requests
 from io import BytesIO
+import openai
 from openai import OpenAI
 from openai import RateLimitError, APIError, APIConnectionError, AuthenticationError
 from dotenv import load_dotenv
@@ -75,20 +76,21 @@ class OpenAIClient:
         self.use_gpt4o_images = os.getenv('USE_GPT4O_IMAGES', 'true').lower() == 'true'
         self.gpt4o_image_model = os.getenv('GPT4O_IMAGE_MODEL', 'gpt-4o')
         
+        # Create a clean client without any extra parameters
         try:
-            # Initialize the client with only the API key to avoid proxies error in newer SDK versions
-            # The newer SDK doesn't accept proxies parameter that might be in environment variables
-            self.client = OpenAI(api_key=self.api_key)
+            # In v1.x of the SDK, OpenAI may be getting proxy settings from env vars
+            # Creating a simple client with only the API key, avoiding any other parameters
+            logger.info("Initializing OpenAI client with only API key")
+            
+            # Use the module-level client approach rather than direct instantiation
+            # to avoid potential env vars that add the proxies parameter
+            openai.api_key = self.api_key
+            self.client = openai.OpenAI()
+            
             logger.info(f"OpenAI client initialized. Primary model: {self.primary_model}")
-        except TypeError as e:
-            if 'unexpected keyword argument' in str(e):
-                logger.warning(f"Error initializing OpenAI client: {str(e)}. Trying without problematic parameters.")
-                # If we hit an unexpected keyword argument error, retry with only the API key
-                self.client = OpenAI(api_key=self.api_key)
-                logger.info(f"OpenAI client initialized successfully with limited parameters. Primary model: {self.primary_model}")
-            else:
-                # If it's another type error, re-raise
-                raise
+        except Exception as e:
+            logger.error(f"Failed to initialize OpenAI client: {str(e)}")
+            raise
         
         if self.use_gpt4o_images:
             logger.info(f"GPT-4o image generation enabled. Will try GPT-4o first, falling back to DALL-E if needed.")

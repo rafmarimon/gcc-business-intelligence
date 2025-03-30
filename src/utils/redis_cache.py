@@ -39,6 +39,49 @@ class InMemoryCache:
     def __init__(self):
         self.cache = {}
         self.expires = {}
+        self.cache_dir = os.path.join(os.getcwd(), 'data', 'cache')
+        
+        # Ensure cache directory exists
+        if not os.path.exists(self.cache_dir):
+            os.makedirs(self.cache_dir)
+            
+        # Load cache from disk if it exists
+        self._load_from_disk()
+        
+        logger.info(f"Initialized InMemoryCache with persistence at {self.cache_dir}")
+    
+    def _load_from_disk(self):
+        """Load cache data from disk"""
+        cache_file = os.path.join(self.cache_dir, 'cache.json')
+        expires_file = os.path.join(self.cache_dir, 'expires.json')
+        
+        try:
+            if os.path.exists(cache_file):
+                with open(cache_file, 'r') as f:
+                    self.cache = json.load(f)
+                logger.info(f"Loaded {len(self.cache)} keys from disk cache")
+            
+            if os.path.exists(expires_file):
+                with open(expires_file, 'r') as f:
+                    # Convert string keys back to numbers
+                    expires_data = json.load(f)
+                    self.expires = {k: float(v) for k, v in expires_data.items()}
+        except Exception as e:
+            logger.error(f"Error loading cache from disk: {str(e)}")
+    
+    def _save_to_disk(self):
+        """Save cache data to disk"""
+        cache_file = os.path.join(self.cache_dir, 'cache.json')
+        expires_file = os.path.join(self.cache_dir, 'expires.json')
+        
+        try:
+            with open(cache_file, 'w') as f:
+                json.dump(self.cache, f)
+            
+            with open(expires_file, 'w') as f:
+                json.dump(self.expires, f)
+        except Exception as e:
+            logger.error(f"Error saving cache to disk: {str(e)}")
     
     def set(self, key: str, value: Any, expire: Optional[int] = None) -> bool:
         """Set a value in the cache with optional expiration time"""
@@ -46,6 +89,9 @@ class InMemoryCache:
         
         if expire:
             self.expires[key] = time.time() + expire
+        
+        # Save to disk after update
+        self._save_to_disk()
         
         return True
     
@@ -69,6 +115,10 @@ class InMemoryCache:
             del self.cache[key]
             if key in self.expires:
                 del self.expires[key]
+            
+            # Save changes to disk
+            self._save_to_disk()
+            
             return True
         
         return False
@@ -90,7 +140,34 @@ class InMemoryCache:
         """Clear the entire cache"""
         self.cache = {}
         self.expires = {}
+        
+        # Save empty cache to disk
+        self._save_to_disk()
+        
         return True
+    
+    def scan(self, cursor: int, match_pattern: str, count: int) -> tuple:
+        """
+        Scan for keys matching a pattern.
+        
+        Args:
+            cursor: Scan cursor (ignored in this implementation)
+            match_pattern: Pattern to match
+            count: Maximum number of keys to return (ignored in this implementation)
+            
+        Returns:
+            Tuple of (next_cursor, list_of_keys)
+        """
+        import fnmatch
+        
+        # Filter keys based on pattern
+        matched_keys = []
+        for key in self.cache.keys():
+            if fnmatch.fnmatch(key, match_pattern):
+                matched_keys.append(key)
+                
+        # This is a simple implementation that returns all matches at once
+        return (0, matched_keys)
 
 class RedisCache:
     """Redis-based caching utility for the GCC Business Intelligence platform.
@@ -111,15 +188,8 @@ class RedisCache:
             redis_host = os.getenv('REDIS_HOST', 'redis-16428.c100.us-east-1-4.ec2.redns.redis-cloud.com')
             redis_port = int(os.getenv('REDIS_PORT', '16428'))
             redis_user = os.getenv('REDIS_USERNAME', 'default')
-            redis_password = os.getenv('REDIS_PASSWORD', '')
+            redis_password = os.getenv('REDIS_PASSWORD', 'Shibboleth@123')  # Default to Shibboleth@123 if not provided
             
-            # If no password is provided in env vars, disable Redis
-            if not redis_password:
-                logger.warning("No Redis password found in environment variables. Using in-memory cache.")
-                self.redis_enabled = False
-                self.cache = {}
-                return
-                
             # Connect to Redis
             self.redis = redis.Redis(
                 host=redis_host,
@@ -386,3 +456,11 @@ def cached(expire: int = 3600, prefix: str = ""):
         return wrapper
     
     return decorator 
+
+def get_redis_cache():
+    """Get the Redis cache singleton instance.
+    
+    Returns:
+        RedisCache: A Redis cache instance
+    """
+    return get_cache() 

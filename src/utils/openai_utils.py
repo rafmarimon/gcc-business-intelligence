@@ -75,10 +75,21 @@ class OpenAIClient:
         self.use_gpt4o_images = os.getenv('USE_GPT4O_IMAGES', 'true').lower() == 'true'
         self.gpt4o_image_model = os.getenv('GPT4O_IMAGE_MODEL', 'gpt-4o')
         
-        # Initialize the client
-        self.client = OpenAI(api_key=self.api_key)
+        try:
+            # Initialize the client with only the API key to avoid proxies error in newer SDK versions
+            # The newer SDK doesn't accept proxies parameter that might be in environment variables
+            self.client = OpenAI(api_key=self.api_key)
+            logger.info(f"OpenAI client initialized. Primary model: {self.primary_model}")
+        except TypeError as e:
+            if 'unexpected keyword argument' in str(e):
+                logger.warning(f"Error initializing OpenAI client: {str(e)}. Trying without problematic parameters.")
+                # If we hit an unexpected keyword argument error, retry with only the API key
+                self.client = OpenAI(api_key=self.api_key)
+                logger.info(f"OpenAI client initialized successfully with limited parameters. Primary model: {self.primary_model}")
+            else:
+                # If it's another type error, re-raise
+                raise
         
-        logger.info(f"OpenAI client initialized. Primary model: {self.primary_model}")
         if self.use_gpt4o_images:
             logger.info(f"GPT-4o image generation enabled. Will try GPT-4o first, falling back to DALL-E if needed.")
     
@@ -104,12 +115,15 @@ class OpenAIClient:
         model = model or self.primary_model
         temperature = temperature if temperature is not None else self.default_temperature
         
+        # Filter out problematic kwargs that might cause issues with newer SDK versions
+        filtered_kwargs = {k: v for k, v in kwargs.items() if k not in ['proxies']}
+        
         try:
             return self.client.chat.completions.create(
                 model=model,
                 messages=messages,
                 temperature=temperature,
-                **kwargs
+                **filtered_kwargs
             )
         except Exception as e:
             # If using the primary model and fallback is enabled, try the fallback model
@@ -120,7 +134,7 @@ class OpenAIClient:
                     messages=messages,
                     temperature=temperature,
                     use_fallback=False,  # Prevent infinite recursion
-                    **kwargs
+                    **filtered_kwargs
                 )
             else:
                 # If already using fallback or fallback disabled, re-raise the exception
@@ -141,11 +155,14 @@ class OpenAIClient:
         """
         if not input:
             raise ValueError("Input is required for embedding creation")
+        
+        # Filter out problematic kwargs
+        filtered_kwargs = {k: v for k, v in kwargs.items() if k not in ['proxies']}
             
         return self.client.embeddings.create(
             model=model,
             input=input,
-            **kwargs
+            **filtered_kwargs
         )
     
     @with_exponential_backoff

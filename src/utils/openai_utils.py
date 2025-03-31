@@ -10,8 +10,14 @@ from openai import RateLimitError, APIError, APIConnectionError, AuthenticationE
 from dotenv import load_dotenv
 import base64
 
+# Import our custom configuration
+from src.utils.openai_config import configure_openai, create_openai_client
+
 # Load environment variables
 load_dotenv()
+
+# Configure OpenAI globally
+configure_openai()
 
 logger = logging.getLogger(__name__)
 
@@ -89,8 +95,10 @@ class OpenAIClient:
         # Create OpenAI client - FIXED initialization without proxies
         try:
             logger.info("Initializing OpenAI client with only API key")
-            # Simple initialization with just the API key
-            self.client = OpenAI(api_key=self.api_key)
+            
+            # Use our configuration utility instead of direct initialization
+            self.client = create_openai_client(api_key=self.api_key)
+            
             logger.info(f"OpenAI client initialized. Primary model: {self.primary_model}")
             
             if self.use_gpt4o_images:
@@ -122,6 +130,10 @@ class OpenAIClient:
         temperature = temperature if temperature is not None else self.default_temperature
         
         try:
+            # Remove any proxy-related kwargs
+            if 'proxies' in kwargs:
+                del kwargs['proxies']
+            
             completion_params = {
                 "model": model,
                 "messages": messages,

@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}Generating GCC Report for {{ client.name }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb bg-light p-3 rounded">
+    <li class="breadcrumb-item"><a href="{{ url_for('dashboard.dashboard') }}">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('clients.list_clients') }}">Clients</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('clients.view_client', client_id=client.id) }}">{{ client.name }}</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Generating GCC Report</li>
+  </ol>
+</nav>
+
+<div class="container">
+  <div class="row justify-content-center">
+    <div class="col-md-10">
+      <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+          <h4 class="mb-0">Generating GCC Market Intelligence Report</h4>
+        </div>
+        <div class="card-body">
+          <div class="text-center mb-4">
+            <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            <h5 class="card-title">Your GCC market intelligence report for {{ client.name }} is being generated</h5>
+            <p class="text-muted">This process may take a few minutes. Please do not close this page.</p>
+            <div class="progress mb-3">
+              <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+            </div>
+            <p id="status-message">Initializing report generation process...</p>
+          </div>
+          
+          <div class="alert alert-info">
+            <h5><i class="fas fa-info-circle"></i> What's happening now?</h5>
+            <ul class="mb-0 text-start">
+              <li>Retrieving client data for <strong>{{ client.name }}</strong></li>
+              <li>Collecting recent news and information from GCC sources</li>
+              <li>Analyzing content for regional trends and insights</li>
+              <li>Generating comprehensive market intelligence report</li>
+              <li>Formatting report in requested output format(s)</li>
+            </ul>
+          </div>
+          
+          <hr>
+          
+          <div class="text-center">
+            <a href="{{ url_for('clients.view_client', client_id=client.id) }}" class="btn btn-outline-secondary">
+              <i class="fas fa-arrow-left"></i> Return to Client Dashboard
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  $(document).ready(function() {
+    // Start with initial progress
+    let progress = 5;
+    let statusMessages = [
+      "Initializing report generation process...",
+      "Retrieving client data and interests...",
+      "Collecting news articles from GCC sources...",
+      "Analyzing content relevance to {{ client.name }}...",
+      "Processing market trends for the GCC region...",
+      "Generating key insights and recommendations...",
+      "Formatting report with client branding...",
+      "Finalizing report generation...",
+      "Report almost ready..."
+    ];
+    let currentMessageIndex = 0;
+    
+    // Update progress bar
+    function updateProgress() {
+      if (progress < 90) {
+        progress += Math.floor(Math.random() * 5) + 1;
+        $('#progress-bar').css('width', progress + '%');
+        
+        // Update status message periodically
+        if (progress > (currentMessageIndex + 1) * 10 && currentMessageIndex < statusMessages.length - 1) {
+          currentMessageIndex++;
+          $('#status-message').text(statusMessages[currentMessageIndex]);
+        }
+      }
+    }
+    
+    // Set interval for updating progress
+    let progressInterval = setInterval(updateProgress, 2000);
+    
+    // Check status from server
+    function checkStatus() {
+      $.ajax({
+        url: "{{ url_for('gcc_reports.api_check_status', client_id=client.id) }}",
+        method: "GET",
+        dataType: "json",
+        success: function(data) {
+          if (data.status === 'complete') {
+            // Report is complete, redirect to results
+            clearInterval(progressInterval);
+            $('#progress-bar').css('width', '100%');
+            $('#status-message').text('Report complete! Redirecting to results...');
+            setTimeout(function() {
+              window.location.href = data.redirect_url;
+            }, 1000);
+          } else if (data.status === 'error') {
+            // Error occurred
+            clearInterval(progressInterval);
+            $('#progress-bar').removeClass('progress-bar-animated progress-bar-striped bg-primary').addClass('bg-danger');
+            $('#progress-bar').css('width', '100%');
+            $('#status-message').text('Error: ' + data.error);
+          }
+        },
+        error: function() {
+          // Handle AJAX error
+          $('#status-message').text('Error checking status. Please wait...');
+        }
+      });
+    }
+    
+    // Check status every 5 seconds
+    setInterval(checkStatus, 5000);
+    
+    // Initial status check after a short delay
+    setTimeout(checkStatus, 2000);
+  });
+</script>
+{% endblock %} 

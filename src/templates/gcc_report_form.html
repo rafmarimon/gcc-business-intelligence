@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}Generate GCC Report - {{ client.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('list_clients') }}">Clients</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('view_client', client_id=client.id) }}">{{ client.name }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Generate GCC Report</li>
+        </ol>
+    </nav>
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Generate GCC-Focused Market Intelligence Report</h5>
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('generate_gcc_client_report', client_id=client.id) }}" method="post">
+                        <div class="alert alert-info">
+                            <h5>About GCC Reports</h5>
+                            <p>Generate a comprehensive market intelligence report focused on the Gulf Cooperation Council (GCC) region for {{ client.name }}.</p>
+                            <p>The report will analyze market trends, opportunities, and challenges specific to Saudi Arabia, UAE, Qatar, Kuwait, Bahrain, and Oman.</p>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="card h-100">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0">Client Information</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <dl class="row">
+                                            <dt class="col-sm-4">Name:</dt>
+                                            <dd class="col-sm-8">{{ client.name }}</dd>
+                                            
+                                            <dt class="col-sm-4">Industry:</dt>
+                                            <dd class="col-sm-8">{{ client.industry }}</dd>
+                                            
+                                            <dt class="col-sm-4">Interests:</dt>
+                                            <dd class="col-sm-8">
+                                                {% if client.interests_list %}
+                                                    {% for interest in client.interests_list %}
+                                                        <span class="badge bg-info text-dark">{{ interest }}</span>
+                                                    {% endfor %}
+                                                {% else %}
+                                                    <span class="text-muted">None specified</span>
+                                                {% endif %}
+                                            </dd>
+                                        </dl>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="card h-100">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0">Report Options</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">Output Format:</label>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="format" id="format-both" value="both" checked>
+                                                <label class="form-check-label" for="format-both">
+                                                    Both Markdown & PDF
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="format" id="format-pdf" value="pdf">
+                                                <label class="form-check-label" for="format-pdf">
+                                                    PDF Only
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="format" id="format-md" value="markdown">
+                                                <label class="form-check-label" for="format-md">
+                                                    Markdown Only
+                                                </label>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="simulate" id="simulate" value="true">
+                                                <label class="form-check-label" for="simulate">
+                                                    Skip crawling (use cached data only)
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary" id="generate-btn">
+                                <i class="fas fa-file-alt me-2"></i> Generate GCC Report
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="processingModal" tabindex="-1" aria-labelledby="processingModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="processingModalLabel">Generating Report</h5>
+            </div>
+            <div class="modal-body text-center">
+                <div class="d-flex justify-content-center mb-3">
+                    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+                <p>Generating GCC-focused market intelligence report for {{ client.name }}.</p>
+                <p class="text-muted small">This may take a few minutes. Please don't close this window.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        $('form').on('submit', function() {
+            $('#processingModal').modal('show');
+        });
+    });
+</script>
+{% endblock %} 

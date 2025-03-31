@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block title %}GCC Report Results - {{ client.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('list_clients') }}">Clients</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('view_client', client_id=client.id) }}">{{ client.name }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">GCC Report Results</li>
+        </ol>
+    </nav>
+
+    <div class="alert alert-success">
+        <i class="fas fa-check-circle me-2"></i> GCC Market Intelligence Report generated successfully!
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">GCC Report Results - {{ client.name }}</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-3">Generated At:</dt>
+                        <dd class="col-sm-9">{{ timestamp }}</dd>
+                        
+                        <dt class="col-sm-3">Client:</dt>
+                        <dd class="col-sm-9">{{ client.name }}</dd>
+                    </dl>
+                    
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0">Report Files</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="list-group">
+                                        {% if md_path %}
+                                        <a href="{{ url_for('download_report', filename=md_path) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <i class="fas fa-file-alt me-2"></i> 
+                                                Markdown Report
+                                                <div class="text-muted small">{{ md_path.split('/')[-1] }}</div>
+                                            </div>
+                                            <span class="badge bg-primary rounded-pill">
+                                                <i class="fas fa-download"></i>
+                                            </span>
+                                        </a>
+                                        {% endif %}
+                                        
+                                        {% if pdf_path %}
+                                        <a href="{{ url_for('download_report', filename=pdf_path) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <i class="fas fa-file-pdf me-2"></i> 
+                                                PDF Report
+                                                <div class="text-muted small">{{ pdf_path.split('/')[-1] }}</div>
+                                            </div>
+                                            <span class="badge bg-primary rounded-pill">
+                                                <i class="fas fa-download"></i>
+                                            </span>
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0">What's Next?</h6>
+                                </div>
+                                <div class="card-body">
+                                    <ul class="list-group list-group-flush">
+                                        <li class="list-group-item">
+                                            <i class="fas fa-eye me-2"></i> 
+                                            <a href="{{ url_for('download_report', filename=pdf_path) if pdf_path else url_for('download_report', filename=md_path) }}" class="text-decoration-none" target="_blank">View the full report</a>
+                                        </li>
+                                        <li class="list-group-item">
+                                            <i class="fas fa-share-alt me-2"></i> 
+                                            <a href="#" class="text-decoration-none" data-bs-toggle="modal" data-bs-target="#linkedinModal">Create LinkedIn post from report</a>
+                                        </li>
+                                        <li class="list-group-item">
+                                            <i class="fas fa-file-alt me-2"></i> 
+                                            <a href="{{ url_for('generate_gcc_client_report', client_id=client.id) }}" class="text-decoration-none">Generate another report</a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 mt-4">
+                        <a href="{{ url_for('view_client', client_id=client.id) }}" class="btn btn-outline-primary">
+                            <i class="fas fa-arrow-left me-2"></i> Return to Client Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- LinkedIn Modal -->
+<div class="modal fade" id="linkedinModal" tabindex="-1" aria-labelledby="linkedinModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="linkedinModalLabel">Create LinkedIn Post</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Would you like to create a LinkedIn post based on this GCC Market Intelligence Report?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="{{ url_for('create_linkedin_post') }}?source=gcc_report&client_id={{ client.id }}&report_path={{ md_path }}" class="btn btn-primary">
+                    <i class="fab fa-linkedin me-2"></i> Create LinkedIn Post
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

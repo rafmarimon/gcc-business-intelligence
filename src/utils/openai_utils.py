@@ -57,58 +57,62 @@ def with_exponential_backoff(func):
     
     return wrapper
 
-class OpenAIClient:
+class OpenAIUtil:
     """
-    A wrapper around the OpenAI client that implements exponential backoff and model fallback.
+    Utility class for interacting with OpenAI APIs.
+    
+    Provides methods for generating text, embeddings, and images using OpenAI models.
+    Includes error handling, rate limiting management, and model fallback options.
     """
+    
     def __init__(self, api_key=None):
+        """
+        Initialize the OpenAI utility with API key and model settings.
+        
+        Args:
+            api_key: Optional OpenAI API key (will use environment variable if not provided)
+        """
         # Use provided key or get from environment
         self.api_key = api_key or os.getenv('OPENAI_API_KEY')
         if not self.api_key:
             raise ValueError("OpenAI API key not provided and not found in environment variables")
             
         # Get model configuration from environment or use defaults
-        self.primary_model = os.getenv('OPENAI_PRIMARY_MODEL', 'gpt-4o')
+        self.primary_model = os.getenv('OPENAI_MODEL', 'gpt-4o')
         self.fallback_model = os.getenv('OPENAI_FALLBACK_MODEL', 'gpt-3.5-turbo')
         self.default_temperature = float(os.getenv('OPENAI_TEMPERATURE', '0.3'))
         
-        # Get GPT-4o image generation settings
+        # Get image generation settings
+        self.image_model = os.getenv('DALLE_MODEL', 'dall-e-3')
         self.use_gpt4o_images = os.getenv('USE_GPT4O_IMAGES', 'true').lower() == 'true'
-        self.gpt4o_image_model = os.getenv('GPT4O_IMAGE_MODEL', 'gpt-4o')
         
-        # Create a clean client without any extra parameters
+        # Create OpenAI client - FIXED initialization without proxies
         try:
-            # In v1.x of the SDK, OpenAI may be getting proxy settings from env vars
-            # Creating a simple client with only the API key, avoiding any other parameters
             logger.info("Initializing OpenAI client with only API key")
-            
-            # Use the module-level client approach rather than direct instantiation
-            # to avoid potential env vars that add the proxies parameter
-            openai.api_key = self.api_key
-            self.client = openai.OpenAI()
-            
+            # Simple initialization with just the API key
+            self.client = OpenAI(api_key=self.api_key)
             logger.info(f"OpenAI client initialized. Primary model: {self.primary_model}")
+            
+            if self.use_gpt4o_images:
+                logger.info(f"GPT-4o image generation enabled. Will try GPT-4o first, falling back to DALL-E if needed.")
         except Exception as e:
             logger.error(f"Failed to initialize OpenAI client: {str(e)}")
             raise
-        
-        if self.use_gpt4o_images:
-            logger.info(f"GPT-4o image generation enabled. Will try GPT-4o first, falling back to DALL-E if needed.")
     
     @with_exponential_backoff
-    def create_chat_completion(self, model=None, messages=None, temperature=None, use_fallback=True, **kwargs):
+    def create_chat_completion(self, messages, model=None, temperature=None, max_tokens=None, **kwargs):
         """
-        Create a chat completion with exponential backoff and model fallback.
+        Create a chat completion with the OpenAI API.
         
         Args:
-            model: The model to use (defaults to primary model from env)
-            messages: The messages to send
-            temperature: The temperature to use
-            use_fallback: Whether to try the fallback model if the primary fails
-            **kwargs: Additional arguments to pass to the API
+            messages: List of message dictionaries with 'role' and 'content'
+            model: Model to use (defaults to primary model)
+            temperature: Temperature for sampling (0-1)
+            max_tokens: Maximum tokens to generate
+            **kwargs: Additional parameters to pass to the API
             
         Returns:
-            The API response
+            OpenAI API response object
         """
         if not messages:
             raise ValueError("Messages are required for chat completion")
@@ -117,30 +121,73 @@ class OpenAIClient:
         model = model or self.primary_model
         temperature = temperature if temperature is not None else self.default_temperature
         
-        # Filter out problematic kwargs that might cause issues with newer SDK versions
-        filtered_kwargs = {k: v for k, v in kwargs.items() if k not in ['proxies']}
-        
         try:
-            return self.client.chat.completions.create(
-                model=model,
-                messages=messages,
-                temperature=temperature,
-                **filtered_kwargs
-            )
+            completion_params = {
+                "model": model,
+                "messages": messages,
+                "temperature": temperature,
+            }
+            
+            # Add max_tokens if specified
+            if max_tokens is not None:
+                completion_params["max_tokens"] = max_tokens
+                
+            # Add any additional kwargs
+            completion_params.update(kwargs)
+            
+            return self.client.chat.completions.create(**completion_params)
         except Exception as e:
-            # If using the primary model and fallback is enabled, try the fallback model
-            if use_fallback and model == self.primary_model:
+            # If using the primary model, try fallback
+            if model == self.primary_model:
                 logger.warning(f"Error with {model}: {str(e)}. Trying fallback model {self.fallback_model}")
                 return self.create_chat_completion(
-                    model=self.fallback_model,
                     messages=messages,
+                    model=self.fallback_model,
                     temperature=temperature,
-                    use_fallback=False,  # Prevent infinite recursion
-                    **filtered_kwargs
+                    max_tokens=max_tokens,
+                    **kwargs
                 )
             else:
-                # If already using fallback or fallback disabled, re-raise the exception
+                # If already using fallback, re-raise
                 raise
+                
+    def generate_text(self, prompt, system_prompt=None, model=None, temperature=None, max_tokens=None):
+        """
+        Generate text using the OpenAI chat completion API.
+        
+        Args:
+            prompt: User prompt to generate text from
+            system_prompt: Optional system prompt to set context
+            model: Model to use (defaults to primary model)
+            temperature: Temperature for sampling (0-1)
+            max_tokens: Maximum tokens to generate
+            
+        Returns:
+            Generated text as a string
+        """
+        # Build messages array
+        messages = []
+        
+        # Add system prompt if provided
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+            
+        # Add user prompt
+        messages.append({"role": "user", "content": prompt})
+        
+        # Call chat completion API
+        response = self.create_chat_completion(
+            messages=messages,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens
+        )
+        
+        # Extract and return the generated text
+        if hasattr(response, 'choices') and len(response.choices) > 0:
+            return response.choices[0].message.content
+        
+        return ""
     
     @with_exponential_backoff
     def create_embedding(self, model="text-embedding-ada-002", input=None, **kwargs):
@@ -158,13 +205,14 @@ class OpenAIClient:
         if not input:
             raise ValueError("Input is required for embedding creation")
         
-        # Filter out problematic kwargs
-        filtered_kwargs = {k: v for k, v in kwargs.items() if k not in ['proxies']}
+        # Remove the proxies parameter which causes problems
+        if 'proxies' in kwargs:
+            del kwargs['proxies']
             
         return self.client.embeddings.create(
             model=model,
             input=input,
-            **filtered_kwargs
+            **kwargs
         )
     
     @with_exponential_backoff
@@ -204,7 +252,7 @@ class OpenAIClient:
             
             # Request an image from GPT-4o
             response = self.client.chat.completions.create(
-                model=self.gpt4o_image_model,
+                model=self.primary_model,
                 messages=messages,
                 temperature=0.7,
                 max_tokens=1000,

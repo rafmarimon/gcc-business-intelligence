@@ -183,31 +183,49 @@ class RedisCache:
         """
         self.redis_enabled = True
         self.connected = False
+        self.in_memory_cache = None
         
         try:
-            redis_host = os.getenv('REDIS_HOST', 'redis-16428.c100.us-east-1-4.ec2.redns.redis-cloud.com')
-            redis_port = int(os.getenv('REDIS_PORT', '16428'))
-            redis_user = os.getenv('REDIS_USERNAME', 'default')
-            redis_password = os.getenv('REDIS_PASSWORD', 'Shibboleth@123')  # Default to Shibboleth@123 if not provided
+            # Get Redis connection parameters from environment variables
+            redis_host = os.getenv('REDIS_HOST')
+            redis_port = int(os.getenv('REDIS_PORT', '6379'))
+            redis_user = os.getenv('REDIS_USERNAME')
+            redis_password = os.getenv('REDIS_PASSWORD')
+            redis_db = int(os.getenv('REDIS_DB', '0'))
             
-            # Connect to Redis
-            self.redis = redis.Redis(
-                host=redis_host,
-                port=redis_port,
-                decode_responses=True,
-                username=redis_user,
-                password=redis_password,
-            )
-            
-            # Test connection
-            self.redis.ping()
-            self.connected = True
-            logger.info(f"Connected to Redis at {redis_host}:{redis_port}")
+            # Try to connect to Redis Cloud
+            try:
+                # Only include username and password if they are provided
+                connection_params = {
+                    "host": redis_host,
+                    "port": redis_port,
+                    "decode_responses": True,
+                    "db": redis_db,
+                    "socket_timeout": 5.0,
+                    "socket_connect_timeout": 5.0,
+                }
+                
+                # Add credentials only if both username and password are provided
+                if redis_user and redis_password:
+                    connection_params["username"] = redis_user
+                    connection_params["password"] = redis_password
+                
+                self.redis = redis.Redis(**connection_params)
+                
+                # Test connection
+                self.redis.ping()
+                self.connected = True
+                logger.info(f"Connected to Redis at {redis_host}:{redis_port}")
+            except Exception as cloud_error:
+                # If Redis Cloud connection fails, try connecting to localhost without authentication
+                logger.warning(f"Redis connection failed: {str(cloud_error)}. Using in-memory cache.")
+                self.redis_enabled = False
+                self.in_memory_cache = InMemoryCache()
             
         except Exception as e:
-            logger.error(f"Redis connection failed: {str(e)}. Using in-memory cache.")
+            logger.error(f"Redis connection initialization error: {str(e)}. Using in-memory cache.")
             self.redis_enabled = False
-            self.cache = {}
+            self.in_memory_cache = InMemoryCache()
     
     def set(self, key, value, expiry=86400):
         """Set a value in the cache with an optional expiry (default 24 hours).
@@ -228,7 +246,7 @@ class RedisCache:
             if self.redis_enabled and self.connected:
                 return self.redis.setex(key, expiry, value)
             else:
-                self.cache[key] = {
+                self.in_memory_cache.cache[key] = {
                     'value': value,
                     'expiry': time.time() + expiry
                 }
@@ -253,15 +271,15 @@ class RedisCache:
                     return None
             else:
                 # Check in-memory cache
-                if key not in self.cache:
+                if key not in self.in_memory_cache.cache:
                     return None
                     
                 # Check if expired
-                if time.time() > self.cache[key]['expiry']:
-                    del self.cache[key]
+                if time.time() > self.in_memory_cache.cache[key]['expiry']:
+                    del self.in_memory_cache.cache[key]
                     return None
                     
-                value = self.cache[key]['value']
+                value = self.in_memory_cache.cache[key]['value']
             
             # Try to parse as JSON
             try:
@@ -287,8 +305,8 @@ class RedisCache:
             if self.redis_enabled and self.connected:
                 return bool(self.redis.delete(key))
             else:
-                if key in self.cache:
-                    del self.cache[key]
+                if key in self.in_memory_cache.cache:
+                    del self.in_memory_cache.cache[key]
                     return True
                 return False
         except Exception as e:
@@ -308,12 +326,12 @@ class RedisCache:
             if self.redis_enabled and self.connected:
                 return bool(self.redis.exists(key))
             else:
-                if key not in self.cache:
+                if key not in self.in_memory_cache.cache:
                     return False
                     
                 # Check if expired
-                if time.time() > self.cache[key]['expiry']:
-                    del self.cache[key]
+                if time.time() > self.in_memory_cache.cache[key]['expiry']:
+                    del self.in_memory_cache.cache[key]
                     return False
                     
                 return True
@@ -331,7 +349,7 @@ class RedisCache:
             if self.redis_enabled and self.connected:
                 self.redis.flushdb()
             else:
-                self.cache = {}
+                self.in_memory_cache.cache = {}
             return True
         except Exception as e:
             logger.error(f"Error flushing cache: {str(e)}")
@@ -352,13 +370,13 @@ class RedisCache:
                 return self.redis.incrby(key, amount)
             else:
                 # Check if key exists and is a number
-                if key in self.cache and self.cache[key]['value'].isdigit():
-                    value = int(self.cache[key]['value']) + amount
-                    self.cache[key]['value'] = str(value)
+                if key in self.in_memory_cache.cache and self.in_memory_cache.cache[key]['value'].isdigit():
+                    value = int(self.in_memory_cache.cache[key]['value']) + amount
+                    self.in_memory_cache.cache[key]['value'] = str(value)
                     return value
                 else:
                     # Initialize with amount
-                    self.cache[key] = {
+                    self.in_memory_cache.cache[key] = {
                         'value': str(amount),
                         'expiry': time.time() + 86400  # Default 24 hour expiry
                     }

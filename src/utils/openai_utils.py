@@ -57,7 +57,7 @@ def with_exponential_backoff(func):
     
     return wrapper
 
-class OpenAIUtil:
+class OpenAIClient:
     """
     Utility class for interacting with OpenAI APIs.
     
@@ -67,7 +67,7 @@ class OpenAIUtil:
     
     def __init__(self, api_key=None):
         """
-        Initialize the OpenAI utility with API key and model settings.
+        Initialize the OpenAI client with API key and model settings.
         
         Args:
             api_key: Optional OpenAI API key (will use environment variable if not provided)

@@ -370,28 +370,32 @@ Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         try:
             # Generate the report content with GPT
             messages = [
-                {"role": "system", "content": f"You are an expert market intelligence analyst specializing in {industry} with deep knowledge of the Gulf Cooperation Council (GCC) region. Your task is to generate a comprehensive weekly market intelligence report for {client_name}, focusing specifically on their interests in {interests_text} WITHIN THE GCC REGION. Be concise, data-driven, and focus on actionable insights specifically relevant to operations in Saudi Arabia, UAE, Qatar, Kuwait, Bahrain, and Oman."},
+                {"role": "system", "content": f"You are an expert market intelligence analyst specializing in {industry} with deep knowledge of the Gulf Cooperation Council (GCC) region. Your task is to generate a factual, objective weekly market intelligence report for {client_name}, focusing specifically on events, news, and developments in {interests_text} WITHIN THE GCC REGION.\n\nIMPORTANT: Your tone should be factual and objective throughout the main body of the report. Strategic recommendations should ONLY appear in the Executive Summary section. The body of the report must focus on summarizing facts from the sources without advisory language like 'the client should' or 'this suggests that {client_name} could'."},
                 {"role": "user", "content": f"""Based on the following recent articles, generate a GCC-focused market intelligence report for {client_name} centered on their interests in {interests_text} within the Gulf region.
                 
                 {article_data}
                 
-                Please structure the report exactly like the Google GAPP Media Roundup Brief with these guidelines:
+                Please structure the report with the following CRITICAL guidelines:
                 1. Title: GCC Market Intelligence Report for {client_name}
                 2. Period: Include dates from {(datetime.now() - timedelta(days=7)).strftime('%B %d, %Y')} to {datetime.now().strftime('%B %d, %Y')}
-                3. Executive Summary (2-3 paragraphs overview focusing on GCC impact)
-                4. Main sections should be organized by relevant topics rather than countries
-                5. Each bullet point must cite and summarize one source article with its URL in markdown link format
-                6. Group related insights under appropriate headers (e.g., Digital Transformation, Sustainability Initiatives, etc.)
-                7. Each point should connect the news to its relevance for {client_name}'s business
-                8. Ensure full traceability and credibility by always citing sources
+                3. Executive Summary: 
+                   - 2-3 paragraphs of high-level recap of major stories and developments
+                   - Include strategic recommendations ONLY in this section
+                4. Main body sections:
+                   - Organize by relevant topics rather than countries
+                   - Each bullet point must cite EXACTLY ONE source article with its SPECIFIC URL
+                   - Content must be purely FACTUAL and OBJECTIVE
+                   - DO NOT include advisory language like "the client should consider" in the main body
+                   - DO NOT tailor the main report content as recommendations or analysis
+                5. Each bullet point MUST use the EXACT article URL from the "URL:" field for proper citation
                 
-                CRITICAL INSTRUCTION: For each bullet point, you MUST use the EXACT article URL that is provided in the "URL:" field of the corresponding article data above. DO NOT use general section URLs (like https://www.website.com/section/) or homepage URLs. Instead, use the complete, specific article URLs exactly as provided in the article data (like https://www.website.com/section/specific-article-title). This is essential for proper citation and traceability.
+                EXAMPLES:
+                ✅ CORRECT: "UAE retail market saw a 25% increase in e-commerce adoption during Q1 2025, according to regional data. [Source](https://www.exactarticleurl.com/specific-article)"
+                ❌ INCORRECT: "The 25% increase in UAE e-commerce suggests Nestle should increase its digital marketing budget. [Source](https://www.generic-domain.com/retail)"
                 
-                The report should emphasize implications for {client_name}'s business in the GCC region.
-                Use markdown formatting for the report structure.
-                Include source URLs in a hyperlinked format for each bullet point.
-                Make sure each insight includes a URL citation.
-                The report should cover the period from {(datetime.now() - timedelta(days=7)).strftime('%B %d, %Y')} to {datetime.now().strftime('%B %d, %Y')}.
+                Remember that the main body content must be a clean, factual aggregation of the sourced content only, with strategic implications reserved exclusively for the Executive Summary.
+
+                Use markdown formatting for the report structure and include source URLs as hyperlinks for each bullet point.
                 """}
             ]
             
@@ -494,7 +498,8 @@ Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         # Dictionary to track replacements
         replacements = {}
         
-        # For each domain, find and replace all links to that domain
+        # IMPORTANT: AGGRESSIVE URL REPLACEMENT
+        # For each domain, find and replace ANY generic URLs with specific article URLs
         for domain, domain_articles in domain_to_articles.items():
             if not domain_articles:
                 continue
@@ -509,11 +514,14 @@ Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
             if domain_links:
                 for link_url in domain_links:
                     # If the link URL is not an exact match to one of our article URLs
-                    if link_url not in domain_urls:
-                        # Replace it with the first article URL for this domain
-                        correct_url = domain_urls[0]
-                        replacements[link_url] = correct_url
-                        logger.warning(f"Will replace generic URL {link_url} with specific article URL {correct_url}")
+                    # OR if it looks like a category, tag, or homepage URL
+                    if link_url not in domain_urls or any(pattern in link_url for pattern in ['/category/', '/tag/', '/section/', '.com/', '.org/']):
+                        # Check if it's a generic URL (e.g., has /category/ or /tag/ in it or ends with domain)
+                        if any(pattern in link_url for pattern in ['/category/', '/tag/', '/section/']) or link_url.endswith(domain):
+                            # Replace it with the first article URL for this domain
+                            correct_url = domain_urls[0]
+                            replacements[link_url] = correct_url
+                            logger.warning(f"Will replace generic URL {link_url} with specific article URL {correct_url}")
         
         # Apply all replacements
         for old_url, new_url in replacements.items():
@@ -543,9 +551,11 @@ Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
                 
                 # Look for markdown links with this domain that might be general section URLs
                 section_patterns = [
-                    f"(\\[.*?\\]\\()https?://{domain}/[^)]*?(\\))",  # General pattern
+                    f"(\\[.*?\\]\\()https?://{domain}/?[^)]*?(\\))",  # General pattern
                     f"(\\[.*?\\]\\()https?://{domain}/category/[^)]*?(\\))",  # Category pattern
                     f"(\\[.*?\\]\\()https?://{domain}/tag/[^)]*?(\\))",  # Tag pattern
+                    f"(\\[.*?\\]\\()https?://{domain}/section/[^)]*?(\\))",  # Section pattern
+                    f"(\\[.*?\\]\\()https?://{domain}/industries/[^)]*?(\\))",  # Industries pattern
                 ]
                 
                 for pattern in section_patterns:

@@ -306,6 +306,76 @@ class ClientReportGenerator:
         
         return weekly_articles
     
+    def _enforce_correct_urls(self, report_content: str, articles: List[Dict[str, Any]]) -> str:
+        """Enforce that URLs in the report match actual article URLs."""
+        logger.info("Enforcing correct article URLs in report")
+        
+        # Build mapping of domains to their specific article URLs
+        domain_articles = {}
+        article_urls = set()
+        
+        for article in articles:
+            url = article.get('url')
+            if not url:
+                continue
+            
+            article_urls.add(url)
+            try:
+                domain = urlparse(url).netloc
+                if domain not in domain_articles:
+                    domain_articles[domain] = []
+                domain_articles[domain].append(url)
+            except Exception as e:
+                logger.error(f"Error parsing URL {url}: {e}")
+        
+        # Find and replace generic URLs
+        link_pattern = r'\[([^\]]+)\]\(([^)]+)\)'
+        replacements = {}
+        
+        for match in re.finditer(link_pattern, report_content):
+            link_text, link_url = match.groups()
+            
+            # Skip if URL is already correct
+            if link_url in article_urls:
+                continue
+            
+            # Check if this is a generic URL we should replace
+            try:
+                domain = urlparse(link_url).netloc
+                if domain in domain_articles:
+                    # Replace with first specific article URL for this domain
+                    specific_url = domain_articles[domain][0]
+                    replacements[link_url] = specific_url
+                    logger.info(f"Replacing generic URL {link_url} with {specific_url}")
+            except Exception as e:
+                logger.error(f"Error processing URL {link_url}: {e}")
+        
+        # Apply all replacements
+        for old_url, new_url in replacements.items():
+            report_content = report_content.replace(f']({old_url})', f']({new_url})')
+        
+        return report_content
+    
+    def _enforce_objective_language(self, report_content: str) -> str:
+        """Remove advisory/speculative language from report content."""
+        advisory_patterns = [
+            r"\b(should|could|would|might|may)\s+(consider|explore|invest|expand|leverage|benefit|take\s+advantage)",
+            r"\b(recommend|advise|suggest|propose)\b",
+            r"\b(opportunity|potential|advantage|wise)\s+(for|to)\b",
+            r"\b(this\s+suggests|this\s+implies|this\s+indicates)\b",
+            r"\b(client|company|firm)\s+(can|should|could)\b"
+        ]
+        
+        for pattern in advisory_patterns:
+            report_content = re.sub(
+                pattern, 
+                lambda m: logger.warning(f"Removed advisory language: {m.group(0)}") or "",
+                report_content,
+                flags=re.IGNORECASE
+            )
+        
+        return report_content
+    
     def generate_report_content(self, client: Dict[str, Any], articles: List[Dict[str, Any]]) -> str:
         """Generate report content using OpenAI based on client interests and articles, with GCC focus."""
         # If no articles, create a mock report for demonstration
@@ -370,33 +440,36 @@ Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         try:
             # Generate the report content with GPT
             messages = [
-                {"role": "system", "content": f"You are an expert market intelligence analyst specializing in {industry} with deep knowledge of the Gulf Cooperation Council (GCC) region. Your task is to generate a factual, objective weekly market intelligence report for {client_name}, focusing specifically on events, news, and developments in {interests_text} WITHIN THE GCC REGION.\n\nIMPORTANT: Your tone should be factual and objective throughout the main body of the report. Strategic recommendations should ONLY appear in the Executive Summary section. The body of the report must focus on summarizing facts from the sources without advisory language like 'the client should' or 'this suggests that {client_name} could'."},
-                {"role": "user", "content": f"""Based on the following recent articles, generate a GCC-focused market intelligence report for {client_name} centered on their interests in {interests_text} within the Gulf region.
-                
-                {article_data}
-                
-                Please structure the report with the following CRITICAL guidelines:
-                1. Title: GCC Market Intelligence Report for {client_name}
-                2. Period: Include dates from {(datetime.now() - timedelta(days=7)).strftime('%B %d, %Y')} to {datetime.now().strftime('%B %d, %Y')}
-                3. Executive Summary: 
-                   - 2-3 paragraphs of high-level recap of major stories and developments
-                   - Include strategic recommendations ONLY in this section
-                4. Main body sections:
-                   - Organize by relevant topics rather than countries
-                   - Each bullet point must cite EXACTLY ONE source article with its SPECIFIC URL
-                   - Content must be purely FACTUAL and OBJECTIVE
-                   - DO NOT include advisory language like "the client should consider" in the main body
-                   - DO NOT tailor the main report content as recommendations or analysis
-                5. Each bullet point MUST use the EXACT article URL from the "URL:" field for proper citation
-                
-                EXAMPLES:
-                ✅ CORRECT: "UAE retail market saw a 25% increase in e-commerce adoption during Q1 2025, according to regional data. [Source](https://www.exactarticleurl.com/specific-article)"
-                ❌ INCORRECT: "The 25% increase in UAE e-commerce suggests Nestle should increase its digital marketing budget. [Source](https://www.generic-domain.com/retail)"
-                
-                Remember that the main body content must be a clean, factual aggregation of the sourced content only, with strategic implications reserved exclusively for the Executive Summary.
-
-                Use markdown formatting for the report structure and include source URLs as hyperlinks for each bullet point.
-                """}
+                {
+                    "role": "system",
+                    "content": f"""You are an expert market intelligence analyst creating a factual report for {client_name}.
+                    
+                    STRICT RULES:
+                    1. Use ONLY objective language - no advice, suggestions, or implications
+                    2. Every claim must cite its EXACT source URL
+                    3. Never use "should", "could", "recommend", or similar advisory terms
+                    4. Focus only on facts stated in the provided articles"""
+                },
+                {
+                    "role": "user",
+                    "content": f"""Generate a GCC-focused report for {client_name} using these articles:
+                    
+                    {article_data}
+                    
+                    FORMAT:
+                    - Title with date range
+                    - Executive Summary (purely factual)
+                    - Sections by topic
+                    - Each point cites one EXACT article URL
+                    
+                    LANGUAGE EXAMPLES:
+                    ✅ GOOD: "UAE announced new AI regulations [Source](exact_url)"
+                    ❌ BAD: "Google should review the new AI regulations"
+                    ✅ GOOD: "Saudi food imports grew 15% [Source](exact_url)"
+                    ❌ BAD: "This growth means Nestle could expand there"
+                    
+                    Remember: Only facts, no advice."""
+                }
             ]
             
             response = self.openai_client.create_chat_completion(
@@ -408,8 +481,9 @@ Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
             # Extract the report content
             report_content = response.choices[0].message.content.strip()
             
-            # Post-process the report to enforce correct URLs
+            # Post-process the report to enforce correct URLs and objective language
             report_content = self._enforce_correct_urls(report_content, articles)
+            report_content = self._enforce_objective_language(report_content)
             
             # Add a header and footer if not present
             if not report_content.startswith("#"):
@@ -456,117 +530,6 @@ Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
             report_content = self._enforce_correct_urls(report_content, articles)
             
             return report_content
-    
-    def _enforce_correct_urls(self, report_content: str, articles: List[Dict[str, Any]]) -> str:
-        """
-        Enforce that URLs in the report match the actual article URLs.
-        This is a fallback in case the LLM still uses general section URLs.
-        
-        Args:
-            report_content: The generated report content
-            articles: List of article data
-            
-        Returns:
-            Updated report content with correct URLs
-        """
-        logger.info("Enforcing correct article URLs in the report")
-        
-        # Create a list of actual article URLs with their article data
-        article_urls = {article.get('url', ''): article for article in articles if article.get('url')}
-        
-        # Log the actual article URLs we have
-        logger.info(f"Available article URLs: {list(article_urls.keys())}")
-        
-        # Create a map of domain to article URLs for that domain
-        domain_to_articles = {}
-        for url, article in article_urls.items():
-            try:
-                domain = urlparse(url).netloc
-                if domain not in domain_to_articles:
-                    domain_to_articles[domain] = []
-                domain_to_articles[domain].append((url, article))
-            except Exception:
-                pass
-        
-        # Find all markdown links in the report
-        link_pattern = r'\[([^\]]+)\]\(([^)]+)\)'
-        matches = re.findall(link_pattern, report_content)
-        
-        # Log the URLs found in the report
-        logger.info(f"URLs found in report: {[url for _, url in matches]}")
-        
-        # Dictionary to track replacements
-        replacements = {}
-        
-        # IMPORTANT: AGGRESSIVE URL REPLACEMENT
-        # For each domain, find and replace ANY generic URLs with specific article URLs
-        for domain, domain_articles in domain_to_articles.items():
-            if not domain_articles:
-                continue
-                
-            # Get the URLs for this domain
-            domain_urls = [url for url, _ in domain_articles]
-            
-            # Find all links to this domain in the report
-            domain_links = [link_url for _, link_url in matches if domain in link_url]
-            
-            # If we have links to this domain in the report
-            if domain_links:
-                for link_url in domain_links:
-                    # If the link URL is not an exact match to one of our article URLs
-                    # OR if it looks like a category, tag, or homepage URL
-                    if link_url not in domain_urls or any(pattern in link_url for pattern in ['/category/', '/tag/', '/section/', '.com/', '.org/']):
-                        # Check if it's a generic URL (e.g., has /category/ or /tag/ in it or ends with domain)
-                        if any(pattern in link_url for pattern in ['/category/', '/tag/', '/section/']) or link_url.endswith(domain):
-                            # Replace it with the first article URL for this domain
-                            correct_url = domain_urls[0]
-                            replacements[link_url] = correct_url
-                            logger.warning(f"Will replace generic URL {link_url} with specific article URL {correct_url}")
-        
-        # Apply all replacements
-        for old_url, new_url in replacements.items():
-            report_content = report_content.replace(f']({old_url})', f']({new_url})')
-            logger.info(f"Replaced URL: {old_url} → {new_url}")
-        
-        # Special case: If we have section headers containing "Source" or "Read more", make sure those links are replaced too
-        source_pattern = r'Source[^\[]*\[([^\]]+)\]\(([^)]+)\)'
-        read_more_pattern = r'Read more[^\[]*\[([^\]]+)\]\(([^)]+)\)'
-        
-        for pattern in [source_pattern, read_more_pattern]:
-            source_matches = re.findall(pattern, report_content, re.IGNORECASE)
-            for _, link_url in source_matches:
-                for domain, domain_articles in domain_to_articles.items():
-                    if domain in link_url and link_url not in [url for url, _ in domain_articles]:
-                        correct_url = domain_articles[0][0]
-                        report_content = report_content.replace(f']({link_url})', f']({correct_url})')
-                        logger.info(f"Replaced source link: {link_url} → {correct_url}")
-        
-        # Direct replacement approach for specific patterns
-        # Replace common generic URLs with specific article URLs
-        for domain in domain_to_articles:
-            # If we have articles for this domain
-            if domain_to_articles[domain]:
-                # Get the specific article URL to use as replacement
-                specific_url = domain_to_articles[domain][0][0]
-                
-                # Look for markdown links with this domain that might be general section URLs
-                section_patterns = [
-                    f"(\\[.*?\\]\\()https?://{domain}/?[^)]*?(\\))",  # General pattern
-                    f"(\\[.*?\\]\\()https?://{domain}/category/[^)]*?(\\))",  # Category pattern
-                    f"(\\[.*?\\]\\()https?://{domain}/tag/[^)]*?(\\))",  # Tag pattern
-                    f"(\\[.*?\\]\\()https?://{domain}/section/[^)]*?(\\))",  # Section pattern
-                    f"(\\[.*?\\]\\()https?://{domain}/industries/[^)]*?(\\))",  # Industries pattern
-                ]
-                
-                for pattern in section_patterns:
-                    # Replace all instances with the specific article URL
-                    report_content = re.sub(pattern, f"\\1{specific_url}\\2", report_content)
-        
-        # Log the final URLs in the report
-        final_matches = re.findall(link_pattern, report_content)
-        logger.info(f"Final URLs in report: {[url for _, url in final_matches]}")
-        
-        return report_content
     
     def save_markdown_report(self, client_name: str, content: str) -> str:
         """Save report content as a markdown file."""
